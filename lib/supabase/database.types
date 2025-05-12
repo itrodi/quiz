@@ -1,9 +1,54 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export interface Database {
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      categories: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      challenges: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      profiles: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      questions: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      quizzes: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      user_achievements: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      user_scores: {
+        Row: any
+        Insert: any
+        Update: any
+      }
     }
     Views: {
       [_ in never]: never
@@ -20,4 +65,5 @@ export interface Database {
   }
 }
 
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
+export type Tables<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Row"]
