@@ -2,19 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { redirect } from "next/navigation"
 
 export default async function LeaderboardPage() {
   const supabase = createClient()
-
-  // Check if user is authenticated
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    redirect("/login?returnUrl=%2Fleaderboard")
-  }
 
   // Fetch global leaderboard data
   const { data: globalLeaderboard } = await supabase
@@ -46,7 +36,7 @@ export default async function LeaderboardPage() {
   const { data: weeklyUsers } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url, quizzes_taken")
-    .in("id", weeklyUserIds)
+    .in("id", weeklyUserIds.length > 0 ? weeklyUserIds : ["no-results"])
 
   // Combine weekly scores with user profiles
   const weeklyLeaderboard = weeklyUsers
@@ -80,7 +70,7 @@ export default async function LeaderboardPage() {
   const { data: achievementUsers } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url")
-    .in("id", achievementUserIds)
+    .in("id", achievementUserIds.length > 0 ? achievementUserIds : ["no-results"])
 
   // Combine achievement counts with user profiles
   const achievementLeaderboard = achievementCounts
@@ -94,8 +84,8 @@ export default async function LeaderboardPage() {
     .filter((item) => item.username) // Filter out any undefined users
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Leaderboards</h1>
+    <div className="container max-w-md md:max-w-4xl mx-auto px-4 py-4 md:py-8">
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Leaderboards</h1>
 
       <Tabs defaultValue="global" className="mb-8">
         <TabsList className="grid grid-cols-3 mb-6">
@@ -208,20 +198,36 @@ export default async function LeaderboardPage() {
         </TabsContent>
       </Tabs>
 
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle>Weekly Challenge</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <p className="mb-4">Complete 5 quizzes this week to earn bonus points!</p>
-            <div className="w-full bg-slate-700 h-4 rounded-full overflow-hidden mb-2">
-              <div className="bg-green-500 h-full" style={{ width: "40%" }}></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle>Weekly Challenge</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-4">
+              <p className="mb-4">Complete 5 quizzes this week to earn bonus points!</p>
+              <div className="w-full bg-slate-700 h-4 rounded-full overflow-hidden mb-2">
+                <div className="bg-green-500 h-full" style={{ width: "40%" }}></div>
+              </div>
+              <p className="text-sm text-gray-400">2 of 5 quizzes completed</p>
             </div>
-            <p className="text-sm text-gray-400">2 of 5 quizzes completed</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle>Your Rank</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-4">
+              <div className="text-4xl font-bold mb-2">
+                #5 <span className="text-sm font-normal text-slate-400">/ 100</span>
+              </div>
+              <p className="text-sm text-slate-400">Keep playing to improve your rank!</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

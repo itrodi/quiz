@@ -169,6 +169,13 @@ export interface Database {
           map_coordinates: Json | null
           order_index: number | null
           created_at: string
+          media: Json | null
+          validation: Json | null
+          points: number | null
+          hint: string | null
+          explanation: string | null
+          tags: string[] | null
+          settings: Json | null
         }
         Insert: {
           id?: string
@@ -183,6 +190,13 @@ export interface Database {
           map_coordinates?: Json | null
           order_index?: number | null
           created_at?: string
+          media?: Json | null
+          validation?: Json | null
+          points?: number | null
+          hint?: string | null
+          explanation?: string | null
+          tags?: string[] | null
+          settings?: Json | null
         }
         Update: {
           id?: string
@@ -197,6 +211,13 @@ export interface Database {
           map_coordinates?: Json | null
           order_index?: number | null
           created_at?: string
+          media?: Json | null
+          validation?: Json | null
+          points?: number | null
+          hint?: string | null
+          explanation?: string | null
+          tags?: string[] | null
+          settings?: Json | null
         }
         Relationships: [
           {
@@ -220,6 +241,12 @@ export interface Database {
           plays: number
           created_at: string
           updated_at: string
+          quiz_type: string | null
+          settings: Json | null
+          tags: string[] | null
+          difficulty: string | null
+          scoring_type: string | null
+          flow_type: string | null
         }
         Insert: {
           id?: string
@@ -233,6 +260,12 @@ export interface Database {
           plays?: number
           created_at?: string
           updated_at?: string
+          quiz_type?: string | null
+          settings?: Json | null
+          tags?: string[] | null
+          difficulty?: string | null
+          scoring_type?: string | null
+          flow_type?: string | null
         }
         Update: {
           id?: string
@@ -246,6 +279,12 @@ export interface Database {
           plays?: number
           created_at?: string
           updated_at?: string
+          quiz_type?: string | null
+          settings?: Json | null
+          tags?: string[] | null
+          difficulty?: string | null
+          scoring_type?: string | null
+          flow_type?: string | null
         }
         Relationships: [
           {
@@ -375,3 +414,86 @@ export type Insertables<T extends keyof Database["public"]["Tables"]> = Database
 export type Updateables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Update"]
 export type Relationships<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Relationships"]
+
+// Enhanced quiz types
+export type QuestionType =
+  | "multiple-choice"
+  | "fill-blank"
+  | "image-choice"
+  | "map-click"
+  | "matching"
+  | "ordering"
+  | "timeline"
+  | "audio"
+  | "categorize"
+  | "list"
+
+export type MediaType = "image" | "audio" | "video" | "svg"
+
+export type ValidationType = "exact" | "case-insensitive" | "contains" | "regex" | "fuzzy"
+
+export type QuizType = "standard" | "geography" | "image-based" | "timeline" | "categorization" | "word-logic"
+
+export type ScoringType = "standard" | "partial" | "time-bonus" | "penalty" | "streak"
+
+export type FlowType = "sequential" | "random" | "adaptive" | "branching"
+
+export interface Media {
+  type: MediaType
+  url: string
+  alt?: string
+}
+
+export interface Option {
+  id: string
+  text: string
+  media?: Media
+}
+
+export interface Validation {
+  type: ValidationType
+  threshold?: number
+  alternateAnswers?: string[]
+}
+
+export interface QuestionSettings {
+  shuffleOptions?: boolean
+  timeLimit?: number
+}
+
+export interface QuizSettings {
+  showFeedbackImmediately?: boolean
+  allowSkipping?: boolean
+  showProgressBar?: boolean
+  showTimer?: boolean
+  passingScore?: number
+}
+
+export interface EnhancedQuestion {
+  id?: string
+  text: string
+  type: QuestionType
+  media?: Media
+  options?: Option[]
+  correctAnswer?: string | string[] | Record<string, string>
+  validation?: Validation
+  points?: number
+  hint?: string
+  explanation?: string
+  tags?: string[]
+  settings?: QuestionSettings
+}
+
+export interface EnhancedQuiz {
+  title: string
+  description?: string
+  emoji?: string
+  time_limit: number
+  quiz_type?: QuizType
+  settings?: QuizSettings
+  tags?: string[]
+  difficulty?: string
+  scoring_type?: ScoringType
+  flow_type?: FlowType
+  questions: EnhancedQuestion[]
+}

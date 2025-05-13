@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { QuizResults } from "@/components/quiz-results"
 import { createClient } from "@/lib/supabase/client"
-import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
+import { shuffleArray } from "@/lib/array-utils"
 import type { Tables } from "@/lib/supabase/database.types"
 
 type QuizProps = {
@@ -18,17 +18,18 @@ type QuizProps = {
   questions: Tables<"questions">[]
 }
 
-export function MultipleChoiceQuiz({ quiz, questions }: QuizProps) {
+export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizProps) {
+  // Shuffle questions on component mount
+  const [questions] = useState(() => shuffleArray(originalQuestions))
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [isAnswered, setIsAnswered] = useState(false)
   const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(quiz.time_limit)
+  const [timeLeft, setTimeLeft] = useState(quiz.time_limit || 60)
   const [isFinished, setIsFinished] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [startTime] = useState<number>(Date.now())
 
-  const { user } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
@@ -85,89 +86,24 @@ export function MultipleChoiceQuiz({ quiz, questions }: QuizProps) {
     setIsFinished(true)
     const timeTaken = Math.floor((Date.now() - startTime) / 1000)
 
-    // Save score to database if user is logged in
-    if (user) {
-      try {
-        await supabase.from("user_scores").insert({
-          user_id: user.id,
+    // Save score to database if user is logged in - removed authentication requirement
+    try {
+      // Create an anonymous record instead
+      const { data: anonymousUser } = await supabase
+        .from("user_scores")
+        .insert({
           quiz_id: quiz.id,
           score: score,
           max_score: questions.length,
           percentage: Math.round((score / questions.length) * 100),
           time_taken: timeTaken,
+          // No user_id for anonymous users
         })
+        .select()
 
-        // Update user stats
-        await supabase
-          .from("profiles")
-          .update({
-            total_score: supabase.rpc("increment", { x: score }),
-            quizzes_taken: supabase.rpc("increment", { x: 1 }),
-          })
-          .eq("id", user.id)
-
-        // Check for achievements
-        await checkAchievements(user.id, score, questions.length)
-      } catch (error) {
-        console.error("Error saving score:", error)
-      }
-    }
-  }
-
-  const checkAchievements = async (userId: string, score: number, maxScore: number) => {
-    try {
-      // Check for perfect score achievement
-      if (score === maxScore) {
-        const { data: perfectScoreAchievement } = await supabase
-          .from("achievements")
-          .select("id")
-          .eq("name", "Perfect Score")
-          .single()
-
-        if (perfectScoreAchievement) {
-          await supabase.from("user_achievements").upsert(
-            {
-              user_id: userId,
-              achievement_id: perfectScoreAchievement.id,
-              progress: 100,
-              max_progress: 100,
-              unlocked: true,
-              unlocked_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,achievement_id" },
-          )
-        }
-      }
-
-      // Check for quiz novice achievement
-      const { data: quizzesTaken } = await supabase
-        .from("user_scores")
-        .select("id", { count: true })
-        .eq("user_id", userId)
-
-      if (quizzesTaken && quizzesTaken.length >= 5) {
-        const { data: quizNoviceAchievement } = await supabase
-          .from("achievements")
-          .select("id")
-          .eq("name", "Quiz Novice")
-          .single()
-
-        if (quizNoviceAchievement) {
-          await supabase.from("user_achievements").upsert(
-            {
-              user_id: userId,
-              achievement_id: quizNoviceAchievement.id,
-              progress: quizzesTaken.length,
-              max_progress: 5,
-              unlocked: quizzesTaken.length >= 5,
-              unlocked_at: quizzesTaken.length >= 5 ? new Date().toISOString() : null,
-            },
-            { onConflict: "user_id,achievement_id" },
-          )
-        }
-      }
+      console.log("Anonymous score saved:", anonymousUser)
     } catch (error) {
-      console.error("Error checking achievements:", error)
+      console.error("Error saving score:", error)
     }
   }
 

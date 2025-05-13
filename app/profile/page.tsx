@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
 import { UserQuizzes } from "@/components/user-quizzes"
 import { UserAchievements } from "@/components/user-achievements"
 import { UserChallenges } from "@/components/user-challenges"
@@ -10,17 +9,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 export default async function ProfilePage() {
   const supabase = createClient()
 
-  // Get the current user
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    redirect("/auth/farcaster")
-  }
-
-  // Get the user profile
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+  // Get a default user for demo purposes
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("total_score", { ascending: false })
+    .limit(1)
+    .single()
 
   // Get user's quizzes
   const { data: userQuizzes } = await supabase
@@ -29,7 +24,7 @@ export default async function ProfilePage() {
       *,
       categories(*)
     `)
-    .eq("creator_id", session.user.id)
+    .eq("creator_id", profile?.id || "")
     .order("created_at", { ascending: false })
 
   // Get user's scores
@@ -39,7 +34,7 @@ export default async function ProfilePage() {
       *,
       quizzes(title, emoji)
     `)
-    .eq("user_id", session.user.id)
+    .eq("user_id", profile?.id || "")
     .order("completed_at", { ascending: false })
 
   // Get user's achievements
@@ -49,7 +44,7 @@ export default async function ProfilePage() {
       *,
       achievements(*)
     `)
-    .eq("user_id", session.user.id)
+    .eq("user_id", profile?.id || "")
 
   // Get user's challenges
   const { data: challengesSent } = await supabase
@@ -59,7 +54,7 @@ export default async function ProfilePage() {
       quizzes(title, emoji),
       profiles!challenges_recipient_id_fkey(username, display_name, avatar_url)
     `)
-    .eq("challenger_id", session.user.id)
+    .eq("challenger_id", profile?.id || "")
 
   const { data: challengesReceived } = await supabase
     .from("challenges")
@@ -68,7 +63,7 @@ export default async function ProfilePage() {
       quizzes(title, emoji),
       profiles!challenges_challenger_id_fkey(username, display_name, avatar_url)
     `)
-    .eq("recipient_id", session.user.id)
+    .eq("recipient_id", profile?.id || "")
 
   const challenges = [
     ...(challengesSent || []).map((c) => ({ ...c, type: "sent" })),
@@ -76,7 +71,7 @@ export default async function ProfilePage() {
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
+    <div className="container max-w-md md:max-w-4xl mx-auto px-4 py-4 md:py-8">
       <Card className="mb-8 bg-slate-800 border-slate-700">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -153,7 +148,7 @@ export default async function ProfilePage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">You haven't taken any quizzes yet</div>
+                <div className="text-center py-8 text-gray-400">No quiz history available</div>
               )}
             </CardContent>
           </Card>

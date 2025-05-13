@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Users } from "lucide-react"
+import { Clock, Users, BarChart2 } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -100,18 +100,25 @@ export function QuizGrid({ filter = "all", category = null, searchQuery = "" }: 
     <div className="grid grid-cols-1 gap-4">
       {quizzes.map((quiz) => (
         <Card key={quiz.id} className="bg-slate-800 border-slate-700 overflow-hidden">
-          <div className="flex">
+          <Link href={`/quiz/preview/${quiz.id}`} className="flex hover:bg-slate-750 transition-colors">
             <div className="w-20 h-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
               <span className="text-2xl">{quiz.emoji}</span>
             </div>
             <CardContent className="p-3 flex-grow">
               <div className="flex justify-between items-start mb-1">
                 <h3 className="font-bold line-clamp-1">{quiz.title}</h3>
-                {quiz.categories && (
-                  <Badge variant="outline" className="ml-1 shrink-0">
-                    {quiz.categories.name}
-                  </Badge>
-                )}
+                <div className="flex gap-1">
+                  {quiz.categories && (
+                    <Badge variant="outline" className="shrink-0">
+                      {quiz.categories.name}
+                    </Badge>
+                  )}
+                  {quiz.difficulty && (
+                    <Badge variant="outline" className="shrink-0 capitalize">
+                      {quiz.difficulty}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-slate-400 mb-2 line-clamp-2">{quiz.description}</p>
               <div className="flex justify-between items-center">
@@ -120,17 +127,21 @@ export function QuizGrid({ filter = "all", category = null, searchQuery = "" }: 
                     <Clock className="mr-1 h-3 w-3" />
                     <span>{quiz.time_limit}s</span>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center mr-3">
                     <Users className="mr-1 h-3 w-3" />
                     <span>{quiz.plays} plays</span>
                   </div>
+                  {quiz.quiz_type && quiz.quiz_type !== "standard" && (
+                    <div className="flex items-center">
+                      <BarChart2 className="mr-1 h-3 w-3" />
+                      <span className="capitalize">{quiz.quiz_type.replace(/-/g, " ")}</span>
+                    </div>
+                  )}
                 </div>
-                <Button asChild size="sm">
-                  <Link href={`/quiz/${quiz.id}`}>Play</Link>
-                </Button>
+                <Button size="sm">View Quiz</Button>
               </div>
             </CardContent>
-          </div>
+          </Link>
         </Card>
       ))}
     </div>

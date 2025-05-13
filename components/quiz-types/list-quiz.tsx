@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { QuizResults } from "@/components/quiz-results"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-context"
+import { shuffleArray } from "@/lib/array-utils"
 import { Badge } from "@/components/ui/badge"
 import type { Tables } from "@/lib/supabase/database.types"
 
@@ -20,7 +21,9 @@ type QuizProps = {
   questions: Tables<"questions">[]
 }
 
-export function ListQuiz({ quiz, questions }: QuizProps) {
+export function ListQuiz({ quiz, questions: originalQuestions }: QuizProps) {
+  // Shuffle questions on component mount
+  const [questions] = useState(() => shuffleArray(originalQuestions))
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answer, setAnswer] = useState("")
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([])

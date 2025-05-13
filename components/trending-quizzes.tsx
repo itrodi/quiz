@@ -64,7 +64,7 @@ export function TrendingQuizzes() {
       {quizzes.map((quiz, index) => (
         <Link
           key={quiz.id}
-          href={`/quiz/${quiz.id}`}
+          href={`/quiz/preview/${quiz.id}`}
           className="flex items-start gap-3 hover:bg-slate-700 p-2 rounded-md"
         >
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-700 font-bold text-sm shrink-0">

@@ -1,37 +1,43 @@
 "use client"
 
 import { useEffect } from "react"
-import { useProfile } from "@farcaster/auth-kit"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
-
-// Import the actual quiz creation component
-import { QuizCreator } from "@/components/quiz-creator"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Lock } from "lucide-react"
+import Link from "next/link"
 
 export default function CreatePage() {
-  const { isAuthenticated, isLoading } = useProfile()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login?returnUrl=%2Fcreate")
-    }
-  }, [isAuthenticated, isLoading, router])
+    // Redirect to home after a short delay
+    const timer = setTimeout(() => {
+      router.push("/")
+    }, 5000)
 
-  if (isLoading) {
-    return (
-      <div className="container max-w-md mx-auto px-4 py-8 flex justify-center items-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading...</p>
-        </div>
-      </div>
-    )
-  }
+    return () => clearTimeout(timer)
+  }, [router])
 
-  if (!isAuthenticated) {
-    return null // Will redirect in useEffect
-  }
-
-  return <QuizCreator />
+  return (
+    <div className="container max-w-md mx-auto px-4 py-8">
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-6 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="bg-slate-700 p-3 rounded-full">
+              <Lock className="h-6 w-6 text-yellow-400" />
+            </div>
+          </div>
+          <h1 className="text-xl font-bold mb-2">Admin Access Only</h1>
+          <p className="text-slate-400 mb-6">
+            Quiz creation is restricted to administrators only. Please contact an administrator if you need to create a
+            quiz.
+          </p>
+          <Button asChild>
+            <Link href="/">Return to Home</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { QuizResults } from "@/components/quiz-results"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-context"
+import { shuffleArray } from "@/lib/array-utils"
 import Image from "next/image"
 import type { Tables } from "@/lib/supabase/database.types"
 
@@ -25,7 +26,9 @@ type Coordinates = {
   y: number
 }
 
-export function MapQuiz({ quiz, questions }: QuizProps) {
+export function MapQuiz({ quiz, questions: originalQuestions }: QuizProps) {
+  // Shuffle questions on component mount
+  const [questions] = useState(() => shuffleArray(originalQuestions))
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedCoordinates, setSelectedCoordinates] = useState<Coordinates | null>(null)
   const [isAnswered, setIsAnswered] = useState(false)

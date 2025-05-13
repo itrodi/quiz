@@ -1,9 +1,13 @@
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { MultipleChoiceQuiz } from "@/components/quiz-types/multiple-choice-quiz"
 import { ImageQuiz } from "@/components/quiz-types/image-quiz"
 import { ListQuiz } from "@/components/quiz-types/list-quiz"
 import { MapQuiz } from "@/components/quiz-types/map-quiz"
+import { ImageFillQuiz } from "@/components/quiz-types/image-fill-quiz"
+
+export const dynamic = "force-dynamic"
 
 export default async function QuizPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
@@ -13,8 +17,7 @@ export default async function QuizPage({ params }: { params: { id: string } }) {
     .from("quizzes")
     .select(`
       *,
-      categories(*),
-      profiles(username, display_name, avatar_url)
+      categories(*)
     `)
     .eq("id", params.id)
     .single()
@@ -39,11 +42,46 @@ export default async function QuizPage({ params }: { params: { id: string } }) {
   // Increment play count
   await supabase
     .from("quizzes")
-    .update({ plays: quiz.plays + 1 })
+    .update({ plays: (quiz.plays || 0) + 1 })
     .eq("id", params.id)
 
-  // Determine quiz type based on first question
-  const quizType = questions[0].question_type
+  // Note: We don't shuffle here because this is server-side
+  // The shuffling will happen in the client components
+
+  // Debug information
+  console.log("Quiz type:", quiz.quiz_type)
+  console.log("First question type:", questions[0].question_type || questions[0].type)
+  console.log("First question has media:", !!questions[0].media)
+
+  // Determine which quiz component to use
+  const renderQuizComponent = () => {
+    // Check for image-based fill-in-the-blank quiz
+    if (
+      (quiz.quiz_type === "image-based" &&
+        (questions[0].question_type === "fill-blank" || questions[0].type === "fill-blank")) ||
+      (questions[0].media && (questions[0].question_type === "fill-blank" || questions[0].type === "fill-blank"))
+    ) {
+      return <ImageFillQuiz quiz={quiz} questions={questions} />
+    }
+
+    // Check for standard question types
+    switch (questions[0].question_type) {
+      case "multiple-choice":
+        return <MultipleChoiceQuiz quiz={quiz} questions={questions} />
+      case "image":
+        return <ImageQuiz quiz={quiz} questions={questions} />
+      case "list":
+        return <ListQuiz quiz={quiz} questions={questions} />
+      case "map":
+        return <MapQuiz quiz={quiz} questions={questions} />
+      default:
+        // If we can't determine the type, try to infer from the structure
+        if (questions[0].media) {
+          return <ImageFillQuiz quiz={quiz} questions={questions} />
+        }
+        return <MultipleChoiceQuiz quiz={quiz} questions={questions} />
+    }
+  }
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -53,8 +91,9 @@ export default async function QuizPage({ params }: { params: { id: string } }) {
           {quiz.title}
         </h1>
         {quiz.description && <p className="text-gray-400 mb-2">{quiz.description}</p>}
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span className="bg-gray-800 px-2 py-1 rounded-full">{quiz.categories?.name || "Uncategorized"}</span>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          {quiz.categories?.name && <span className="bg-gray-800 px-2 py-1 rounded-full">{quiz.categories.name}</span>}
+          {quiz.difficulty && <span className="bg-gray-800 px-2 py-1 rounded-full capitalize">{quiz.difficulty}</span>}
           <span>•</span>
           <span>{quiz.time_limit} seconds</span>
           <span>•</span>
@@ -64,13 +103,7 @@ export default async function QuizPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      {quizType === "multiple-choice" && <MultipleChoiceQuiz quiz={quiz} questions={questions} />}
-
-      {quizType === "image" && <ImageQuiz quiz={quiz} questions={questions} />}
-
-      {quizType === "list" && <ListQuiz quiz={quiz} questions={questions} />}
-
-      {quizType === "map" && <MapQuiz quiz={quiz} questions={questions} />}
+      <Suspense fallback={<div className="text-center py-8">Loading quiz...</div>}>{renderQuizComponent()}</Suspense>
     </div>
   )
 }
