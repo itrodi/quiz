@@ -2,84 +2,64 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
-import { Menu, X } from "lucide-react"
+import { Home, Search, Users, Trophy, User } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
 
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/auth-kit-context"
+const navItems = [
+  {
+    name: "Home",
+    href: "/",
+    icon: Home,
+  },
+  {
+    name: "Explore",
+    href: "/explore",
+    icon: Search,
+  },
+  {
+    name: "Social",
+    href: "/social",
+    icon: Users,
+  },
+  {
+    name: "Leaderboard",
+    href: "/leaderboard",
+    icon: Trophy,
+  },
+]
 
 export function MobileNav() {
-  const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
-  const { isAuthenticated, user } = useAuth()
-
-  const toggleMenu = () => {
-    setIsOpen(!isOpen)
-  }
-
-  const closeMenu = () => {
-    setIsOpen(false)
-  }
-
-  const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/explore", label: "Explore" },
-    { href: "/quizzes", label: "Quizzes" },
-    { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/social", label: "Social" },
-  ]
-
-  const authItems = isAuthenticated ? [{ href: "/profile", label: "Profile" }] : [{ href: "/login", label: "Login" }]
+  const { user, isAuthenticated } = useAuth()
 
   return (
-    <div className="md:hidden">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="relative z-50"
-        onClick={toggleMenu}
-        aria-label={isOpen ? "Close menu" : "Open menu"}
-      >
-        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </Button>
-
-      {isOpen && (
-        <div className="fixed inset-0 z-40 bg-background/95 backdrop-blur-sm">
-          <nav className="fixed inset-0 flex flex-col items-center justify-center space-y-6 p-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-xl font-medium ${
-                  pathname === item.href ? "text-primary" : "text-muted-foreground hover:text-primary"
-                }`}
-                onClick={closeMenu}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="h-px w-16 bg-border" />
-            {authItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-xl font-medium ${
-                  pathname === item.href ? "text-primary" : "text-muted-foreground hover:text-primary"
-                }`}
-                onClick={closeMenu}
-              >
-                {item.label}
-              </Link>
-            ))}
-            {isAuthenticated && user && (
-              <div className="mt-4 flex flex-col items-center">
-                <div className="mb-2 text-sm text-muted-foreground">Signed in as</div>
-                <div className="font-medium">{user.username || user.email}</div>
-              </div>
+    <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-slate-800 border-t border-slate-700 md:hidden">
+      <div className="grid h-full grid-cols-5">
+        {navItems.map((item) => (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={cn(
+              "flex flex-col items-center justify-center text-slate-400 hover:text-white transition-colors",
+              pathname === item.href && "text-white",
             )}
-          </nav>
-        </div>
-      )}
+          >
+            <item.icon className="w-5 h-5" />
+            <span className="text-xs mt-1">{item.name}</span>
+          </Link>
+        ))}
+        <Link
+          href={isAuthenticated ? "/profile" : "/login"}
+          className={cn(
+            "flex flex-col items-center justify-center text-slate-400 hover:text-white transition-colors",
+            (pathname === "/profile" || pathname === "/login") && "text-white",
+          )}
+        >
+          <User className="w-5 h-5" />
+          <span className="text-xs mt-1">{isAuthenticated ? "Profile" : "Login"}</span>
+        </Link>
+      </div>
     </div>
   )
 }
