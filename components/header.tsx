@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LogOut, User } from "lucide-react"
-import { SignInButton } from "@farcaster/auth-kit"
 
 export function Header() {
   const pathname = usePathname()
@@ -115,7 +114,11 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <SignInButton />
+              <Link href="/login">
+                <Button variant="default" size="sm">
+                  Sign In
+                </Button>
+              </Link>
             )}
           </nav>
         </div>

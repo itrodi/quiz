@@ -1,8 +1,6 @@
 "use client"
 
 import type React from "react"
-
-import "@farcaster/auth-kit/styles.css"
 import { AuthKitProvider as FarcasterAuthKitProvider } from "@farcaster/auth-kit"
 import { useProfile } from "@farcaster/auth-kit"
 import { createContext, useContext, useEffect, useState } from "react"

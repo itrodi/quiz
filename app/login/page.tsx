@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SignInButton } from "@farcaster/auth-kit"
+import { CustomFarcasterButton } from "@/components/custom-farcaster-button"
 import { useAuth } from "@/contexts/auth-kit-context"
 
 export default function LoginPage() {
@@ -26,7 +26,7 @@ export default function LoginPage() {
         <CardContent>
           <div className="grid gap-4">
             <div className="flex justify-center">
-              <SignInButton />
+              <CustomFarcasterButton />
             </div>
           </div>
         </CardContent>
