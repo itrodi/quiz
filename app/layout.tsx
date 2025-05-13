@@ -1,36 +1,33 @@
 import type React from "react"
-import type { Metadata } from "next"
+import "@/app/globals.css"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
 import { Header } from "@/components/header"
-import { MobileNav } from "@/components/mobile-nav"
-import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { AuthKitProvider } from "@/contexts/auth-kit-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "BrainCast - The Ultimate Quiz Experience",
-  description: "Test your knowledge and compete with friends on the premier quiz platform",
+export const metadata = {
+  title: "BrainCast",
+  description: "Learn and earn with web3 quizzes",
     generator: 'v0.dev'
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      </head>
-      <body className={`${inter.className} bg-slate-900 text-white`}>
-        <ThemeProvider attribute="class" defaultTheme="dark">
-          <Header />
-          <main className="pb-16 md:pb-0">{children}</main>
-          <MobileNav />
-          <Toaster />
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthKitProvider>
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <div className="flex-1">{children}</div>
+            </div>
+          </AuthKitProvider>
         </ThemeProvider>
       </body>
     </html>
