@@ -2,62 +2,64 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Search, Users, Trophy, User } from "lucide-react"
+import { Home, Search, Trophy, Users, User } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/contexts/auth-context"
-
-const navItems = [
-  {
-    name: "Home",
-    href: "/",
-    icon: Home,
-  },
-  {
-    name: "Explore",
-    href: "/explore",
-    icon: Search,
-  },
-  {
-    name: "Social",
-    href: "/social",
-    icon: Users,
-  },
-  {
-    name: "Leaderboard",
-    href: "/leaderboard",
-    icon: Trophy,
-  },
-]
 
 export function MobileNav() {
   const pathname = usePathname()
-  const { user, isAuthenticated } = useAuth()
 
   return (
-    <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-slate-800 border-t border-slate-700 md:hidden">
+    <div className="md:hidden fixed bottom-0 left-0 z-50 w-full h-16 bg-slate-800 border-t border-slate-700">
       <div className="grid h-full grid-cols-5">
-        {navItems.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            className={cn(
-              "flex flex-col items-center justify-center text-slate-400 hover:text-white transition-colors",
-              pathname === item.href && "text-white",
-            )}
-          >
-            <item.icon className="w-5 h-5" />
-            <span className="text-xs mt-1">{item.name}</span>
-          </Link>
-        ))}
         <Link
-          href={isAuthenticated ? "/profile" : "/login"}
+          href="/"
           className={cn(
-            "flex flex-col items-center justify-center text-slate-400 hover:text-white transition-colors",
-            (pathname === "/profile" || pathname === "/login") && "text-white",
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/" && "text-purple-400",
+          )}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-xs mt-1">Home</span>
+        </Link>
+        <Link
+          href="/explore"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/explore" && "text-purple-400",
+          )}
+        >
+          <Search className="w-5 h-5" />
+          <span className="text-xs mt-1">Explore</span>
+        </Link>
+        <Link
+          href="/social"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/social" && "text-purple-400",
+          )}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-xs mt-1">Social</span>
+        </Link>
+        <Link
+          href="/leaderboard"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/leaderboard" && "text-purple-400",
+          )}
+        >
+          <Trophy className="w-5 h-5" />
+          <span className="text-xs mt-1">Leaderboard</span>
+        </Link>
+        <Link
+          href="/profile"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/profile" && "text-purple-400",
           )}
         >
           <User className="w-5 h-5" />
-          <span className="text-xs mt-1">{isAuthenticated ? "Profile" : "Login"}</span>
+          <span className="text-xs mt-1">Profile</span>
         </Link>
       </div>
     </div>

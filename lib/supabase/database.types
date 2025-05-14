@@ -1,0 +1,135 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      achievements: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      categories: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      challenges: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      profiles: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      questions: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      quizzes: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      user_achievements: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      user_scores: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
+
+export type QuizType =
+  | "standard"
+  | "geography"
+  | "image-based"
+  | "timeline"
+  | "categorization"
+  | "word-logic"
+
+export interface EnhancedQuiz {
+  title: string
+  description?: string
+  emoji?: string
+  time_limit: number
+  quiz_type?: QuizType
+  settings?: QuizSettings
+  tags?: string[]
+  difficulty?: string
+  scoring_type?: string
+  flow_type?: string
+  questions: EnhancedQuestion[]
+}
+
+export interface QuestionSettings {
+  shuffleOptions?: boolean
+  timeLimit?: number
+}
+
+export interface QuizSettings {
+  showFeedbackImmediately?: boolean
+  allowSkipping?: boolean
+  showProgressBar?: boolean
+  showTimer?: boolean
+  passingScore?: number
+}
+
+export interface EnhancedQuestion {
+  id?: string
+  text: string
+  type: string
+  media?: Media
+  options?: Option[]
+  correctAnswer?: string | string[] | Record<string, string>
+  validation?: Validation
+  points?: number
+  hint?: string
+  explanation?: string
+  tags?: string[]
+  settings?: QuestionSettings
+}
+
+export interface Media {
+  type: string
+  url: string
+  alt?: string
+}
+
+export interface Option {
+  id: string
+  text: string
+}
+
+export interface Validation {
+  type: string
+  threshold?: number
+  alternateAnswers?: string[]
+}

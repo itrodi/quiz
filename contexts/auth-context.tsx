@@ -1,76 +1,58 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
+import type React from "react"
 
-type User = {
-  id: string
-  fid?: number
-  username?: string
-  displayName?: string
-  pfpUrl?: string
-}
+import { createContext, useContext, useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import type { User, Session } from "@supabase/supabase-js"
+import { useRouter } from "next/navigation"
+import { signInWithFarcaster } from "@/lib/farcaster"
 
 type AuthContextType = {
   user: User | null
-  isAuthenticated: boolean
+  session: Session | null
   isLoading: boolean
-  signIn: (message: string, signature: string) => Promise<void>
+  signIn: (provider: "farcaster") => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClientComponentClient()
   const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
-    const checkSession = async () => {
+    const getSession = async () => {
+      setIsLoading(true)
       try {
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession()
-
-        if (session) {
-          const { data: userData } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-
-          setUser({
-            id: session.user.id,
-            fid: userData?.fid,
-            username: userData?.username,
-            displayName: userData?.display_name,
-            pfpUrl: userData?.pfp_url,
-          })
+        if (error) {
+          throw error
         }
+        setSession(session)
+        setUser(session?.user ?? null)
       } catch (error) {
-        console.error("Error checking session:", error)
+        console.error("Error getting session:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkSession()
+    getSession()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        const { data: userData } = await supabase.from("users").select("*").eq("id", session.user.id).single()
-
-        setUser({
-          id: session.user.id,
-          fid: userData?.fid,
-          username: userData?.username,
-          displayName: userData?.display_name,
-          pfpUrl: userData?.pfp_url,
-        })
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
-      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      router.refresh()
     })
 
     return () => {
@@ -78,28 +60,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, router])
 
-  const signIn = async (message: string, signature: string) => {
+  const signIn = async (provider: "farcaster") => {
     try {
       setIsLoading(true)
 
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message, signature }),
-      })
+      if (provider === "farcaster") {
+        // Use our enhanced signInWithFarcaster function
+        const result = await signInWithFarcaster()
 
-      if (!response.ok) {
-        throw new Error("Failed to verify signature")
-      }
+        if (!result) {
+          throw new Error("Failed to sign in with Farcaster")
+        }
 
-      const { data } = await response.json()
+        // The session should be automatically set by the Supabase client
+        // after the API route sets the cookies
 
-      if (data?.user) {
-        setUser(data.user)
         router.push("/")
+        return
       }
+
+      throw new Error(`Unsupported provider: ${provider}`)
     } catch (error) {
       console.error("Error signing in:", error)
       throw error
@@ -110,33 +90,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      setIsLoading(true)
       await supabase.auth.signOut()
-      setUser(null)
       router.push("/")
     } catch (error) {
       console.error("Error signing out:", error)
-    } finally {
-      setIsLoading(false)
+      throw error
     }
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        signIn,
-        signOut,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  const value = {
+    user,
+    session,
+    isLoading,
+    signIn,
+    signOut,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")
