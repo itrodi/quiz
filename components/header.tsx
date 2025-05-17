@@ -1,7 +1,12 @@
+"use client"
+
 import { Brain } from "lucide-react"
 import Link from "next/link"
+import { useFarcaster } from "@/contexts/farcaster-context"
 
 export function Header() {
+  const { isMiniApp } = useFarcaster()
+
   return (
     <header className="bg-slate-800 border-b border-slate-700 py-3 px-4">
       <div className="container max-w-6xl mx-auto flex items-center justify-between">
@@ -12,20 +17,22 @@ export function Header() {
           <span className="font-bold text-lg">BrainCast</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
-          <Link href="/explore" className="text-sm font-medium hover:text-white">
-            Explore
-          </Link>
-          <Link href="/leaderboard" className="text-sm font-medium hover:text-white">
-            Leaderboard
-          </Link>
-          <Link href="/social" className="text-sm font-medium hover:text-white">
-            Social
-          </Link>
-          <Link href="/profile" className="text-sm font-medium hover:text-white">
-            Profile
-          </Link>
-        </nav>
+        {!isMiniApp && (
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="/explore" className="text-sm font-medium hover:text-white">
+              Explore
+            </Link>
+            <Link href="/leaderboard" className="text-sm font-medium hover:text-white">
+              Leaderboard
+            </Link>
+            <Link href="/social" className="text-sm font-medium hover:text-white">
+              Social
+            </Link>
+            <Link href="/profile" className="text-sm font-medium hover:text-white">
+              Profile
+            </Link>
+          </nav>
+        )}
       </div>
     </header>
   )

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { FeaturedQuizzes } from "@/components/featured-quizzes"
 import { PopularCategories } from "@/components/popular-categories"
 import { TrendingQuizzes } from "@/components/trending-quizzes"
+import { AddFramePrompt } from "@/components/add-frame-prompt"
 
 export default function Home() {
   return (
@@ -17,12 +18,9 @@ export default function Home() {
         <p className="text-sm md:text-base text-slate-300">The Ultimate Quiz Experience</p>
       </div>
 
-      <div className="flex gap-2 mb-6 md:mb-10 md:max-w-md md:mx-auto">
+      <div className="mb-6 md:mb-10 md:max-w-md md:mx-auto">
         <Button className="w-full" size="sm" asChild>
           <Link href="/explore">Explore Quizzes</Link>
-        </Button>
-        <Button variant="outline" size="sm" className="w-full" asChild>
-          <Link href="/admin">Admin Dashboard</Link>
         </Button>
       </div>
 
@@ -61,6 +59,7 @@ export default function Home() {
           </Card>
         </section>
       </div>
+      <AddFramePrompt />
     </div>
   )
 }

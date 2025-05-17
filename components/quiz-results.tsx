@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, Clock, ArrowRight, Share2, Check, X } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { useFarcaster } from "@/contexts/farcaster-context"
+import { sdk } from "@farcaster/frame-sdk"
 
 interface QuizResultsProps {
   score: number
@@ -33,6 +35,7 @@ export function QuizResults({
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
+  const { isMiniApp } = useFarcaster()
 
   const percentage = Math.round((score / totalQuestions) * 100)
   const minutes = Math.floor(timeTaken / 60)
@@ -71,8 +74,18 @@ export function QuizResults({
     return "Nice try! Study up and try again!"
   }
 
-  const handleShare = () => {
-    if (navigator.share) {
+  const handleShare = async () => {
+    if (isMiniApp) {
+      try {
+        // Use the Farcaster SDK to compose a cast
+        await sdk.actions.composeCast({
+          text: `I scored ${score}/${totalQuestions} (${percentage}%) on the ${quizTitle} quiz!`,
+          embeds: [`${process.env.NEXT_PUBLIC_APP_URL}/quiz/${quizId}`],
+        })
+      } catch (error) {
+        console.error("Error sharing to Farcaster:", error)
+      }
+    } else if (navigator.share) {
       navigator.share({
         title: `My ${quizTitle} Quiz Result`,
         text: `I scored ${score}/${totalQuestions} (${percentage}%) on the ${quizTitle} quiz!`,
