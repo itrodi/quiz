@@ -15,9 +15,9 @@
     "splashBackgroundColor": "#0f172a",
     "webhookUrl": "https://braincast.app/api/webhook",
     "subtitle": "The Ultimate Quiz Experience on Farcaster",
-    "description": "Test your knowledge and compete with friends on the premier quiz platform for Farcaster",
+    "description": "Test your knowledge and compete with friends on the premier quiz platform for Farcaster. Challenge others and earn achievements as you play.",
     "primaryCategory": "education",
     "tags": ["quiz", "knowledge", "education", "farcaster", "game"],
-    "tagline": "Test your knowledge on Farcaster"
+    "tagline": "Test your knowledge and learn on Farcaster"
   }
 }
