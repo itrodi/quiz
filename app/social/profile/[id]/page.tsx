@@ -1,8 +1,4 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,166 +6,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { UserQuizzes } from "@/components/user-quizzes"
 import { UserAchievements } from "@/components/user-achievements"
-import { UserChallenges } from "@/components/user-challenges"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
-import { useAuth } from "@/contexts/auth-kit-context"
-import { toast } from "@/components/ui/use-toast"
 
-export default function UserProfilePage({ params }: { params: { id: string } }) {
-  const [profile, setProfile] = useState<any>(null)
-  const [userQuizzes, setUserQuizzes] = useState<any[]>([])
-  const [userAchievements, setUserAchievements] = useState<any[]>([])
-  const [availableQuizzes, setAvailableQuizzes] = useState<any[]>([])
-  const [selectedQuizId, setSelectedQuizId] = useState<string>("")
-  const [loading, setLoading] = useState(true)
-  const [challengeLoading, setChallengeLoading] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const router = useRouter()
+export default async function UserProfilePage({ params }: { params: { id: string } }) {
   const supabase = createClient()
-  const { profile: currentUserProfile, isAuthenticated } = useAuth()
   const userId = params.id
 
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      setLoading(true)
-      try {
-        // Get the user profile
-        const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
+  // Get the user profile
+  const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
-        if (error || !profileData) {
-          notFound()
-        }
-
-        setProfile(profileData)
-
-        // Get user's quizzes
-        const { data: quizzes } = await supabase
-          .from("quizzes")
-          .select(`
-            *,
-            categories(*)
-          `)
-          .eq("creator_id", userId)
-          .order("created_at", { ascending: false })
-
-        setUserQuizzes(quizzes || [])
-
-        // Get user's achievements
-        const { data: achievements } = await supabase
-          .from("user_achievements")
-          .select(`
-            *,
-            achievements(*)
-          `)
-          .eq("user_id", userId)
-
-        setUserAchievements(achievements || [])
-
-        // Get available quizzes for challenges
-        const { data: allQuizzes } = await supabase
-          .from("quizzes")
-          .select("id, title, emoji")
-          .eq("is_published", true)
-          .order("plays", { ascending: false })
-          .limit(20)
-
-        setAvailableQuizzes(allQuizzes || [])
-        if (allQuizzes && allQuizzes.length > 0) {
-          setSelectedQuizId(allQuizzes[0].id)
-        }
-      } catch (error) {
-        console.error("Error fetching profile data:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProfileData()
-  }, [userId])
-
-  const handleChallenge = async () => {
-    if (!isAuthenticated || !currentUserProfile) {
-      toast({
-        title: "Authentication required",
-        description: "You need to be logged in to challenge other users.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (currentUserProfile.id === userId) {
-      toast({
-        title: "Cannot challenge yourself",
-        description: "You cannot challenge yourself to a quiz.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!selectedQuizId) {
-      toast({
-        title: "No quiz selected",
-        description: "Please select a quiz for the challenge.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setChallengeLoading(true)
-    try {
-      // Create the challenge
-      await fetch("/api/challenges", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          recipient_id: userId,
-          quiz_id: selectedQuizId,
-        }),
-      })
-
-      toast({
-        title: "Challenge created!",
-        description: `You've challenged ${profile.display_name || profile.username} to a quiz. Take the quiz now to set your score.`,
-      })
-
-      // Redirect to the quiz
-      router.push(`/quiz/${selectedQuizId}?challenge=true`)
-    } catch (error) {
-      console.error("Error creating challenge:", error)
-      toast({
-        title: "Failed to create challenge",
-        description: "There was an error creating the challenge. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setChallengeLoading(false)
-      setDialogOpen(false)
-    }
+  if (error || !profile) {
+    notFound()
   }
 
-  if (loading) {
-    return (
-      <div className="container flex justify-center items-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
-  }
+  // Get user's quizzes
+  const { data: userQuizzes } = await supabase
+    .from("quizzes")
+    .select(`
+      *,
+      categories(*)
+    `)
+    .eq("creator_id", userId)
+    .order("created_at", { ascending: false })
 
-  if (!profile) {
-    return notFound()
-  }
+  // Get user's achievements
+  const { data: userAchievements } = await supabase
+    .from("user_achievements")
+    .select(`
+      *,
+      achievements(*)
+    `)
+    .eq("user_id", userId)
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -209,54 +75,8 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
           </div>
 
           <div className="flex justify-center sm:justify-end mt-6 gap-2">
-            {isAuthenticated && currentUserProfile?.id !== userId && (
-              <>
-                <Button variant="outline">Add Friend</Button>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>Challenge</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Challenge to a Quiz</DialogTitle>
-                      <DialogDescription>
-                        Challenge {profile?.display_name || profile?.username} to a quiz. You'll take the quiz first to
-                        set your score.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Select a Quiz</label>
-                          <Select value={selectedQuizId} onValueChange={setSelectedQuizId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a quiz" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableQuizzes.map((quiz) => (
-                                <SelectItem key={quiz.id} value={quiz.id}>
-                                  {quiz.emoji && <span className="mr-2">{quiz.emoji}</span>}
-                                  {quiz.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleChallenge} disabled={challengeLoading}>
-                        {challengeLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {challengeLoading ? "Creating Challenge..." : "Challenge"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </>
-            )}
+            <Button variant="outline">Add Friend</Button>
+            <Button>Challenge</Button>
           </div>
         </CardContent>
       </Card>
@@ -265,19 +85,14 @@ export default function UserProfilePage({ params }: { params: { id: string } }) 
         <TabsList className="mb-6">
           <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
           <TabsTrigger value="achievements">Achievements</TabsTrigger>
-          <TabsTrigger value="challenges">Challenges</TabsTrigger>
         </TabsList>
 
         <TabsContent value="quizzes">
-          <UserQuizzes quizzes={userQuizzes} />
+          <UserQuizzes quizzes={userQuizzes || []} />
         </TabsContent>
 
         <TabsContent value="achievements">
-          <UserAchievements achievements={userAchievements} />
-        </TabsContent>
-
-        <TabsContent value="challenges">
-          <UserChallenges userId={userId} />
+          <UserAchievements achievements={userAchievements || []} />
         </TabsContent>
       </Tabs>
     </div>

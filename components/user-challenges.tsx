@@ -1,68 +1,126 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Clock, Trophy } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-kit-context"
-import { toast } from "@/components/ui/use-toast"
 
-export function UserChallenges({ userId }: { userId: string }) {
-  const [challenges, setChallenges] = useState<any[]>([])
+interface UserChallengesProps {
+  userId: string
+}
+
+export function UserChallenges({ userId }: UserChallengesProps) {
+  const [activeChallenges, setActiveChallenges] = useState<any[]>([])
   const [sentChallenges, setSentChallenges] = useState<any[]>([])
-  const [completedChallenges, setCompletedChallenges] = useState<any[]>([])
+  const [historyChallenges, setHistoryChallenges] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
-  const { profile } = useAuth()
-  const isCurrentUser = profile?.id === userId
 
   useEffect(() => {
-    const fetchChallenges = async () => {
-      setLoading(true)
+    async function fetchChallenges() {
+      if (!userId) return
+
       try {
-        // Fetch active challenges (pending challenges where the user is the recipient)
-        const { data: activeChallenges } = await supabase
+        // Fetch active challenges (where user is recipient and status is pending)
+        const { data: active, error: activeError } = await supabase
           .from("challenges")
           .select(`
             *,
             challenger:profiles!challenger_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            quiz:quizzes(id, title, emoji)
           `)
           .eq("recipient_id", userId)
           .eq("status", "pending")
 
-        // Fetch sent challenges (challenges where the user is the challenger)
-        const { data: userSentChallenges } = await supabase
+        if (activeError) throw activeError
+
+        // Fetch sent challenges (where user is challenger)
+        const { data: sent, error: sentError } = await supabase
           .from("challenges")
           .select(`
             *,
             recipient:profiles!recipient_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            quiz:quizzes(id, title, emoji)
           `)
           .eq("challenger_id", userId)
 
-        // Fetch completed challenges
-        const { data: userCompletedChallenges } = await supabase
+        if (sentError) throw sentError
+
+        // Fetch history (completed challenges)
+        const { data: history, error: historyError } = await supabase
           .from("challenges")
           .select(`
             *,
             challenger:profiles!challenger_id(username, display_name, avatar_url),
             recipient:profiles!recipient_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            quiz:quizzes(id, title, emoji)
           `)
-          .or(`challenger_id.eq.${userId},recipient_id.eq.${userId}`)
           .eq("status", "completed")
+          .or(`challenger_id.eq.${userId},recipient_id.eq.${userId}`)
 
-        setChallenges(activeChallenges || [])
-        setSentChallenges(userSentChallenges || [])
-        setCompletedChallenges(userCompletedChallenges || [])
+        if (historyError) throw historyError
+
+        // Format the data
+        const formattedActive = active.map((challenge: any) => ({
+          id: challenge.id,
+          challenger: {
+            username: challenge.challenger.username,
+            displayName: challenge.challenger.display_name,
+            pfpUrl: challenge.challenger.avatar_url || "/placeholder.svg?height=40&width=40",
+          },
+          quizId: challenge.quiz_id,
+          quizTitle: challenge.quiz.title,
+          challengerScore: challenge.challenger_score,
+          questions: 0, // We don't have this info in the database
+          timeLeft: getTimeLeft(challenge.expires_at),
+        }))
+
+        const formattedSent = sent.map((challenge: any) => ({
+          id: challenge.id,
+          recipient: {
+            username: challenge.recipient.username,
+            displayName: challenge.recipient.display_name,
+            pfpUrl: challenge.recipient.avatar_url || "/placeholder.svg?height=40&width=40",
+          },
+          quizTitle: challenge.quiz.title,
+          yourScore: challenge.challenger_score,
+          sentDate: new Date(challenge.created_at).toLocaleDateString(),
+          status: challenge.status,
+        }))
+
+        const formattedHistory = history.map((challenge: any) => {
+          const isChallenger = challenge.challenger_id === userId
+          const opponent = isChallenger ? challenge.recipient : challenge.challenger
+          const yourScore = isChallenger ? challenge.challenger_score : challenge.recipient_score
+          const opponentScore = isChallenger ? challenge.recipient_score : challenge.challenger_score
+
+          let result = "Tied"
+          if (yourScore > opponentScore) result = "Won"
+          else if (yourScore < opponentScore) result = "Lost"
+
+          return {
+            id: challenge.id,
+            opponent: {
+              username: opponent.username,
+              displayName: opponent.display_name,
+              pfpUrl: opponent.avatar_url || "/placeholder.svg?height=40&width=40",
+            },
+            quizTitle: challenge.quiz.title,
+            yourScore,
+            opponentScore,
+            date: new Date(challenge.updated_at).toLocaleDateString(),
+            result,
+          }
+        })
+
+        setActiveChallenges(formattedActive)
+        setSentChallenges(formattedSent)
+        setHistoryChallenges(formattedHistory)
       } catch (error) {
         console.error("Error fetching challenges:", error)
       } finally {
@@ -71,264 +129,208 @@ export function UserChallenges({ userId }: { userId: string }) {
     }
 
     fetchChallenges()
-  }, [userId])
+  }, [userId, supabase])
 
-  const handleAcceptChallenge = async (challengeId: string, quizId: string) => {
-    if (!isCurrentUser) {
-      toast({
-        title: "Permission denied",
-        description: "You can only accept challenges sent to you.",
-        variant: "destructive",
-      })
-      return
-    }
+  function getTimeLeft(expiresAt: string) {
+    if (!expiresAt) return "Unknown"
 
-    setActionLoading(true)
-    try {
-      await fetch(`/api/challenges/${challengeId}/accept`, {
-        method: "POST",
-      })
+    const now = new Date()
+    const expiry = new Date(expiresAt)
+    const diffMs = expiry.getTime() - now.getTime()
 
-      toast({
-        title: "Challenge accepted!",
-        description: "Take the quiz now to complete the challenge.",
-      })
+    if (diffMs <= 0) return "Expired"
 
-      // Redirect to the quiz
-      router.push(`/quiz/${quizId}?challenge=${challengeId}`)
-    } catch (error) {
-      console.error("Error accepting challenge:", error)
-      toast({
-        title: "Failed to accept challenge",
-        description: "There was an error accepting the challenge. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setActionLoading(false)
-    }
-  }
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
 
-  const handleDeclineChallenge = async (challengeId: string) => {
-    if (!isCurrentUser) {
-      toast({
-        title: "Permission denied",
-        description: "You can only decline challenges sent to you.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setActionLoading(true)
-    try {
-      await fetch(`/api/challenges/${challengeId}/decline`, {
-        method: "POST",
-      })
-
-      toast({
-        title: "Challenge declined",
-        description: "The challenge has been declined.",
-      })
-
-      // Remove the challenge from the list
-      setChallenges(challenges.filter((challenge) => challenge.id !== challengeId))
-    } catch (error) {
-      console.error("Error declining challenge:", error)
-      toast({
-        title: "Failed to decline challenge",
-        description: "There was an error declining the challenge. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setActionLoading(false)
-    }
+    if (diffDays > 0) return `${diffDays} days left`
+    return `${diffHours} hours left`
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-slate-800 rounded-lg p-3 animate-pulse">
+            <div className="flex justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-slate-700"></div>
+                <div>
+                  <div className="h-4 bg-slate-700 rounded w-24 mb-1"></div>
+                  <div className="h-3 bg-slate-700 rounded w-16"></div>
+                </div>
+              </div>
+              <div className="h-5 bg-slate-700 rounded w-20"></div>
+            </div>
+            <div className="h-4 bg-slate-700 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-slate-700 rounded w-1/2 mb-3"></div>
+            <div className="h-8 bg-slate-700 rounded w-full"></div>
+          </div>
+        ))}
       </div>
     )
   }
 
   return (
     <Tabs defaultValue="active">
-      <TabsList className="mb-6">
-        <TabsTrigger value="active">Active Challenges</TabsTrigger>
-        <TabsTrigger value="sent">Sent Challenges</TabsTrigger>
-        <TabsTrigger value="completed">Completed Challenges</TabsTrigger>
+      <TabsList className="grid grid-cols-3 mb-4 bg-slate-800">
+        <TabsTrigger value="active">Active</TabsTrigger>
+        <TabsTrigger value="sent">Sent</TabsTrigger>
+        <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
 
       <TabsContent value="active">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Active Challenges</CardTitle>
-            <CardDescription>Challenges that have been sent to {isCurrentUser ? "you" : "this user"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {challenges.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No active challenges</div>
-            ) : (
-              <div className="space-y-4">
-                {challenges.map((challenge) => (
-                  <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar>
-                        <AvatarImage src={challenge.challenger.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {challenge.challenger.display_name?.charAt(0) ||
-                            challenge.challenger.username?.charAt(0) ||
-                            "?"}
-                        </AvatarFallback>
-                      </Avatar>
+        <div className="space-y-3">
+          {activeChallenges.length > 0 ? (
+            activeChallenges.map((challenge) => (
+              <Card key={challenge.id} className="bg-slate-800 border-slate-700">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={challenge.challenger.pfpUrl || "/placeholder.svg"}
+                        alt={challenge.challenger.displayName}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
                       <div>
-                        <div className="font-medium">
-                          {challenge.challenger.display_name || challenge.challenger.username} challenged{" "}
-                          {isCurrentUser ? "you" : "this user"}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
-                          {challenge.quiz.title}
-                        </div>
+                        <div className="font-medium text-sm">{challenge.challenger.displayName}</div>
+                        <div className="text-xs text-slate-400">@{challenge.challenger.username}</div>
                       </div>
                     </div>
-
-                    {isCurrentUser && (
-                      <div className="flex gap-2 mt-4">
-                        <Button
-                          onClick={() => handleAcceptChallenge(challenge.id, challenge.quiz_id)}
-                          disabled={actionLoading}
-                          className="flex-1"
-                        >
-                          {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          Accept Challenge
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleDeclineChallenge(challenge.id)}
-                          disabled={actionLoading}
-                          className="flex-1"
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    )}
+                    <Badge>{challenge.timeLeft}</Badge>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
+                  <div className="mb-3">
+                    <h3 className="font-bold text-sm">{challenge.quizTitle}</h3>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <div className="flex items-center">
+                        <Trophy className="mr-1 h-3 w-3" />
+                        <span>Their score: {challenge.challengerScore}%</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="mr-1 h-3 w-3" />
+                        <span>{challenge.questions || "?"} questions</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button asChild size="sm" className="w-full">
+                    <Link href={`/quiz/${challenge.quizId}?challenge=${challenge.id}`}>Accept Challenge</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <Trophy className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No active challenges</p>
+            </div>
+          )}
+        </div>
       </TabsContent>
 
       <TabsContent value="sent">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Sent Challenges</CardTitle>
-            <CardDescription>
-              Challenges that {isCurrentUser ? "you have" : "this user has"} sent to others
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {sentChallenges.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No sent challenges</div>
-            ) : (
-              <div className="space-y-4">
-                {sentChallenges.map((challenge) => (
-                  <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar>
-                        <AvatarImage src={challenge.recipient.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {challenge.recipient.display_name?.charAt(0) ||
-                            challenge.recipient.username?.charAt(0) ||
-                            "?"}
-                        </AvatarFallback>
-                      </Avatar>
+        <div className="space-y-3">
+          {sentChallenges.length > 0 ? (
+            sentChallenges.map((challenge) => (
+              <Card key={challenge.id} className="bg-slate-800 border-slate-700">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={challenge.recipient.pfpUrl || "/placeholder.svg"}
+                        alt={challenge.recipient.displayName}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
                       <div>
-                        <div className="font-medium">
-                          {isCurrentUser ? "You" : "This user"} challenged{" "}
-                          {challenge.recipient.display_name || challenge.recipient.username}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
-                          {challenge.quiz.title}
-                        </div>
+                        <div className="font-medium text-sm">{challenge.recipient.displayName}</div>
+                        <div className="text-xs text-slate-400">@{challenge.recipient.username}</div>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <Badge variant={challenge.status === "pending" ? "outline" : "default"}>
-                        {challenge.status === "pending" ? "Pending" : challenge.status}
-                      </Badge>
-                      {challenge.challenger_score !== null && (
-                        <div className="text-sm">
-                          Your score: <span className="font-bold">{challenge.challenger_score}</span>
-                        </div>
-                      )}
+                    <Badge variant="outline">{challenge.status}</Badge>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-sm">{challenge.quizTitle}</h3>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <div className="flex items-center">
+                        <Trophy className="mr-1 h-3 w-3" />
+                        <span>Your score: {challenge.yourScore}%</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="mr-1 h-3 w-3" />
+                        <span>Sent {challenge.sentDate}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <p className="text-sm">You haven't sent any challenges yet</p>
+            </div>
+          )}
+        </div>
       </TabsContent>
 
-      <TabsContent value="completed">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Completed Challenges</CardTitle>
-            <CardDescription>Challenges that have been completed</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {completedChallenges.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No completed challenges</div>
-            ) : (
-              <div className="space-y-4">
-                {completedChallenges.map((challenge) => {
-                  const isChallenger = challenge.challenger_id === userId
-                  const opponent = isChallenger ? challenge.recipient : challenge.challenger
-                  const userScore = isChallenger ? challenge.challenger_score : challenge.recipient_score
-                  const opponentScore = isChallenger ? challenge.recipient_score : challenge.challenger_score
-                  const userWon = userScore > opponentScore
-                  const isDraw = userScore === opponentScore
-
-                  return (
-                    <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Avatar>
-                          <AvatarImage src={opponent.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {opponent.display_name?.charAt(0) || opponent.username?.charAt(0) || "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">
-                            {isChallenger
-                              ? `You challenged ${opponent.display_name || opponent.username}`
-                              : `${opponent.display_name || opponent.username} challenged you`}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
-                            {challenge.quiz.title}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <Badge variant={userWon ? "success" : isDraw ? "outline" : "destructive"}>
-                          {userWon ? "Won" : isDraw ? "Draw" : "Lost"}
-                        </Badge>
-                        <div className="text-sm">
-                          {userScore} - {opponentScore}
-                        </div>
+      <TabsContent value="history">
+        <div className="space-y-3">
+          {historyChallenges.length > 0 ? (
+            historyChallenges.map((challenge) => (
+              <Card key={challenge.id} className="bg-slate-800 border-slate-700">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={challenge.opponent.pfpUrl || "/placeholder.svg"}
+                        alt={challenge.opponent.displayName}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                      <div>
+                        <div className="font-medium text-sm">{challenge.opponent.displayName}</div>
+                        <div className="text-xs text-slate-400">@{challenge.opponent.username}</div>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <Badge
+                      variant={
+                        challenge.result === "Won" ? "default" : challenge.result === "Lost" ? "destructive" : "outline"
+                      }
+                    >
+                      {challenge.result}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-sm">{challenge.quizTitle}</h3>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <div className="flex items-center">
+                        <Trophy className="mr-1 h-3 w-3" />
+                        <span>
+                          You: {challenge.yourScore}% | Them: {challenge.opponentScore}%
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="mr-1 h-3 w-3" />
+                        <span>{challenge.date}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <p className="text-sm">No challenge history yet</p>
+            </div>
+          )}
+        </div>
       </TabsContent>
     </Tabs>
   )

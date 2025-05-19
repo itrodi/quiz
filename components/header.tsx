@@ -1,6 +1,5 @@
 import { Brain } from "lucide-react"
 import Link from "next/link"
-import { UserProfileHeader } from "./user-profile-header"
 
 export function Header() {
   return (
@@ -17,9 +16,9 @@ export function Header() {
           <Link href="/explore" className="text-sm font-medium hover:text-white">
             Explore
           </Link>
-          <a href="/leaderboard" className="text-sm font-medium hover:text-white">
+          <Link href="/leaderboard" className="text-sm font-medium hover:text-white">
             Leaderboard
-          </a>
+          </Link>
           <Link href="/social" className="text-sm font-medium hover:text-white">
             Social
           </Link>
@@ -27,8 +26,6 @@ export function Header() {
             Profile
           </Link>
         </nav>
-
-        <UserProfileHeader />
       </div>
     </header>
   )
