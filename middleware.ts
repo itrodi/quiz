@@ -7,7 +7,28 @@ export async function middleware(req: NextRequest) {
     // Create a response object
     const res = NextResponse.next()
 
-    // Create a Supabase client
+    // Check if this is an admin route
+    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin")
+
+    // If it's an admin route, let the admin middleware handle it
+    if (isAdminRoute) {
+      // Check for admin session cookie
+      const adminSession = req.cookies.get("adminSession")
+
+      // Allow access to admin login page
+      if (req.nextUrl.pathname === "/admin/login") {
+        return NextResponse.next()
+      }
+
+      // Check if admin is logged in
+      if (!adminSession || adminSession.value !== "true") {
+        return NextResponse.redirect(new URL("/admin/login", req.url))
+      }
+
+      return NextResponse.next()
+    }
+
+    // For non-admin routes, handle app authentication
     const supabase = createMiddlewareClient({ req, res })
 
     // Refresh the session
