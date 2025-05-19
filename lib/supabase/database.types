@@ -54,8 +54,8 @@ export interface Database {
         Update: {
           id?: number
           name?: string
-          emoji?: string | null
           description?: string | null
+          emoji?: string | null
           created_at?: string
         }
         Relationships: []
@@ -404,13 +404,6 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      increment: {
-        Args: {
-          x: number
-          integer_only: boolean
-        }
-        Returns: number
-      }
       [_ in never]: never
     }
     Enums: {
