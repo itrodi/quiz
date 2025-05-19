@@ -1,56 +1,66 @@
 "use client"
 
-import { Home, Search, Trophy, User } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useFarcaster } from "@/contexts/farcaster-context"
+import { Home, Search, Trophy, Users, User } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function MobileNav() {
   const pathname = usePathname()
-  const { isMiniApp } = useFarcaster()
-
-  if (isMiniApp) {
-    return null
-  }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-700 bg-slate-800 md:hidden">
-      <div className="flex items-center justify-around">
+    <div className="md:hidden fixed bottom-0 left-0 z-50 w-full h-16 bg-slate-800 border-t border-slate-700">
+      <div className="grid h-full grid-cols-5">
         <Link
           href="/"
-          className={`flex flex-1 flex-col items-center justify-center py-2 ${
-            pathname === "/" ? "text-white" : "text-slate-400"
-          }`}
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/" && "text-purple-400",
+          )}
         >
-          <Home className="h-5 w-5" />
-          <span className="text-xs">Home</span>
+          <Home className="w-5 h-5" />
+          <span className="text-xs mt-1">Home</span>
         </Link>
         <Link
           href="/explore"
-          className={`flex flex-1 flex-col items-center justify-center py-2 ${
-            pathname === "/explore" ? "text-white" : "text-slate-400"
-          }`}
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/explore" && "text-purple-400",
+          )}
         >
-          <Search className="h-5 w-5" />
-          <span className="text-xs">Explore</span>
+          <Search className="w-5 h-5" />
+          <span className="text-xs mt-1">Explore</span>
         </Link>
         <Link
-          href="/leaderboard"
-          className={`flex flex-1 flex-col items-center justify-center py-2 ${
-            pathname === "/leaderboard" ? "text-white" : "text-slate-400"
-          }`}
+          href="/social"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/social" && "text-purple-400",
+          )}
         >
-          <Trophy className="h-5 w-5" />
-          <span className="text-xs">Leaderboard</span>
+          <Users className="w-5 h-5" />
+          <span className="text-xs mt-1">Social</span>
         </Link>
+        {/* Use a direct href instead of Link component for testing */}
+        <a
+          href="/leaderboard"
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/leaderboard" && "text-purple-400",
+          )}
+        >
+          <Trophy className="w-5 h-5" />
+          <span className="text-xs mt-1">Leaderboard</span>
+        </a>
         <Link
           href="/profile"
-          className={`flex flex-1 flex-col items-center justify-center py-2 ${
-            pathname === "/profile" ? "text-white" : "text-slate-400"
-          }`}
+          className={cn(
+            "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
+            pathname === "/profile" && "text-purple-400",
+          )}
         >
-          <User className="h-5 w-5" />
-          <span className="text-xs">Profile</span>
+          <User className="w-5 h-5" />
+          <span className="text-xs mt-1">Profile</span>
         </Link>
       </div>
     </div>

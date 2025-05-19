@@ -5,7 +5,6 @@ import Link from "next/link"
 import { FeaturedQuizzes } from "@/components/featured-quizzes"
 import { PopularCategories } from "@/components/popular-categories"
 import { TrendingQuizzes } from "@/components/trending-quizzes"
-import { AddFramePrompt } from "@/components/add-frame-prompt"
 
 export default function Home() {
   return (
@@ -59,7 +58,6 @@ export default function Home() {
           </Card>
         </section>
       </div>
-      <AddFramePrompt />
     </div>
   )
 }
