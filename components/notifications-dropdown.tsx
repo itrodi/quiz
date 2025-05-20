@@ -15,15 +15,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/contexts/auth-kit-context"
 
 export function NotificationsDropdown() {
   const [friendRequests, setFriendRequests] = useState<any[]>([])
   const [challenges, setChallenges] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
+    // Only run if the user is authenticated
+    if (!isAuthenticated) {
+      setLoading(false)
+      return
+    }
+
     // Create the Supabase client inside the effect to ensure it's only created in the browser
     const supabase = createClient()
 
@@ -34,10 +43,14 @@ export function NotificationsDropdown() {
         const {
           data: { session },
         } = await supabase.auth.getSession()
+
         if (!session?.user) {
           setLoading(false)
           return
         }
+
+        // Store the current user ID for later use in the component
+        setCurrentUserId(session.user.id)
 
         // Get friend requests - using separate queries instead of joins
         const { data: friendsData, error: friendsError } = await supabase
@@ -177,7 +190,7 @@ export function NotificationsDropdown() {
     return () => {
       clearInterval(pollingInterval)
     }
-  }, [])
+  }, [isAuthenticated])
 
   const handleFriendRequestClick = () => {
     router.push("/social?tab=requests")
@@ -185,6 +198,11 @@ export function NotificationsDropdown() {
 
   const handleChallengeClick = () => {
     router.push("/profile?tab=challenges")
+  }
+
+  // If not authenticated, don't show the notifications button
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
@@ -239,12 +257,6 @@ export function NotificationsDropdown() {
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="text-xs font-normal text-gray-500">Challenges</DropdownMenuLabel>
                 {challenges.slice(0, 3).map((challenge) => {
-                  // Create a new client for each render to avoid stale data
-                  const supabase = createClient()
-                  const {
-                    data: { session },
-                  } = supabase.auth.getSession()
-                  const currentUserId = session?.user?.id
                   const isChallenger = challenge.challenger_id === currentUserId
                   const otherUser = isChallenger ? challenge.recipient : challenge.challenger
 
