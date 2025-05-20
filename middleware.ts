@@ -34,7 +34,15 @@ export async function middleware(req: NextRequest) {
     // Refresh the session
     const {
       data: { session },
+      error,
     } = await supabase.auth.getSession()
+
+    // If there's an error getting the session, log it and continue
+    if (error) {
+      console.error("Error getting session in middleware:", error)
+      // Continue to the page without redirecting
+      return NextResponse.next()
+    }
 
     // Check if the request is for a protected route
     const isProtectedRoute =
