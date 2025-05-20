@@ -1,59 +1,79 @@
-import type React from "react"
-import { createClient } from "@/lib/supabase/server"
-import { notFound } from "next/navigation"
+"use client"
+
+import { useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, BarChart2, Award, Calendar, Tag } from "lucide-react"
+import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, UserPlus } from "lucide-react"
 import Image from "next/image"
+import { UserSearchModal } from "@/components/user-search-modal"
+import { useAuth } from "@/contexts/auth-kit-context"
 
-export const dynamic = "force-dynamic"
-
-export default async function QuizPreviewPage({ params }: { params: { id: string } }) {
+export default function QuizPreviewPage({ params }: { params: { id: string } }) {
+  const [quiz, setQuiz] = useState<any>(null)
+  const [questionsCount, setQuestionsCount] = useState<number | null>(null)
+  const [topScores, setTopScores] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showChallengeModal, setShowChallengeModal] = useState(false)
   const supabase = createClient()
+  const router = useRouter()
+  const { isAuthenticated } = useAuth()
 
-  // Fetch quiz data
-  const { data: quiz, error: quizError } = await supabase
-    .from("quizzes")
-    .select(`
-      *,
-      categories(*),
-      profiles(username, display_name, avatar_url)
-    `)
-    .eq("id", params.id)
-    .single()
+  useState(() => {
+    const fetchQuizData = async () => {
+      setLoading(true)
+      try {
+        // Fetch quiz data
+        const { data: quizData, error: quizError } = await supabase
+          .from("quizzes")
+          .select(`
+            *,
+            categories(*),
+            profiles(username, display_name, avatar_url)
+          `)
+          .eq("id", params.id)
+          .single()
 
-  if (quizError || !quiz) {
-    console.error("Error fetching quiz:", quizError)
-    return notFound()
-  }
+        if (quizError) throw quizError
+        setQuiz(quizData)
 
-  // Fetch questions count
-  const { count: questionsCount, error: countError } = await supabase
-    .from("questions")
-    .select("*", { count: "exact", head: true })
-    .eq("quiz_id", params.id)
+        // Fetch questions count
+        const { count, error: countError } = await supabase
+          .from("questions")
+          .select("*", { count: "exact", head: true })
+          .eq("quiz_id", params.id)
 
-  if (countError) {
-    console.error("Error fetching questions count:", countError)
-    // Don't return notFound() here, just log the error
-  }
+        if (!countError) {
+          setQuestionsCount(count)
+        }
 
-  // Fetch top scores
-  const { data: topScores, error: scoresError } = await supabase
-    .from("user_scores")
-    .select(`
-      score, 
-      percentage,
-      profiles(username, display_name, avatar_url)
-    `)
-    .eq("quiz_id", params.id)
-    .order("percentage", { ascending: false })
-    .limit(5)
+        // Fetch top scores
+        const { data: scoresData, error: scoresError } = await supabase
+          .from("user_scores")
+          .select(`
+            score, 
+            percentage,
+            profiles(username, display_name, avatar_url)
+          `)
+          .eq("quiz_id", params.id)
+          .order("percentage", { ascending: false })
+          .limit(5)
 
-  if (scoresError) {
-    console.error("Error fetching top scores:", scoresError)
-    // Don't return notFound() here, just log the error
-  }
+        if (!scoresError) {
+          setTopScores(scoresData || [])
+        }
+      } catch (error: any) {
+        console.error("Error fetching quiz:", error)
+        setError(error.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchQuizData()
+  }, [params.id])
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -63,6 +83,28 @@ export default async function QuizPreviewPage({ params }: { params: { id: string
       month: "short",
       day: "numeric",
     }).format(date)
+  }
+
+  if (loading) {
+    return (
+      <div className="container flex justify-center items-center min-h-[60vh]">
+        <div className="animate-spin h-8 w-8 border-4 border-purple-500 rounded-full border-t-transparent"></div>
+      </div>
+    )
+  }
+
+  if (error || !quiz) {
+    return (
+      <div className="container flex justify-center items-center min-h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Quiz not found</h2>
+          <p className="text-gray-400 mb-4">{error || "The quiz you're looking for doesn't exist."}</p>
+          <Button asChild>
+            <Link href="/explore">Browse Quizzes</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -191,37 +233,28 @@ export default async function QuizPreviewPage({ params }: { params: { id: string
             </div>
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
             <Button asChild size="lg" className="px-8">
               <Link href={`/quiz/${params.id}`}>Start Quiz</Link>
             </Button>
+
+            {isAuthenticated && (
+              <Button variant="outline" size="lg" className="px-8" onClick={() => setShowChallengeModal(true)}>
+                <UserPlus className="mr-2 h-5 w-5" />
+                Challenge Friend
+              </Button>
+            )}
           </div>
         </div>
       </div>
-    </div>
-  )
-}
 
-function Trophy(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
+      {/* Challenge Modal */}
+      <UserSearchModal
+        isOpen={showChallengeModal}
+        onClose={() => setShowChallengeModal(false)}
+        quizId={params.id}
+        quizTitle={quiz.title}
+      />
+    </div>
   )
 }

@@ -85,7 +85,7 @@ export default function ProfilePage() {
               </h1>
               {profile.username && <p className="text-gray-400 mb-3">{`@${profile.username}`}</p>}
 
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 md:gap-4 justify-center sm:justify-start">
+              <div className="grid grid-cols-3 gap-3 md:gap-4 justify-center sm:justify-start">
                 <div className="text-center bg-slate-700 rounded-lg p-2">
                   <p className="text-xl md:text-2xl font-bold">{profile.totalScore || 0}</p>
                   <p className="text-xs md:text-sm text-gray-400">Total Score</p>
@@ -93,10 +93,6 @@ export default function ProfilePage() {
                 <div className="text-center bg-slate-700 rounded-lg p-2">
                   <p className="text-xl md:text-2xl font-bold">{profile.quizzesTaken || 0}</p>
                   <p className="text-xs md:text-sm text-gray-400">Quizzes Taken</p>
-                </div>
-                <div className="text-center bg-slate-700 rounded-lg p-2">
-                  <p className="text-xl md:text-2xl font-bold">{profile.quizzesCreated || 0}</p>
-                  <p className="text-xs md:text-sm text-gray-400">Quizzes Created</p>
                 </div>
                 <div className="text-center bg-slate-700 rounded-lg p-2">
                   <p className="text-xl md:text-2xl font-bold">

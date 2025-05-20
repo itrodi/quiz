@@ -152,28 +152,28 @@ export function UserChallenges({ userId }: { userId: string }) {
   }
 
   return (
-    <Tabs defaultValue="active">
-      <TabsList className="mb-6">
-        <TabsTrigger value="active">Active Challenges</TabsTrigger>
-        <TabsTrigger value="sent">Sent Challenges</TabsTrigger>
-        <TabsTrigger value="completed">Completed Challenges</TabsTrigger>
+    <Tabs defaultValue="active" className="space-y-4">
+      <TabsList className="w-full grid grid-cols-3">
+        <TabsTrigger value="active">Active</TabsTrigger>
+        <TabsTrigger value="sent">Sent</TabsTrigger>
+        <TabsTrigger value="completed">Completed</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="active">
+      <TabsContent value="active" className="mt-0 pt-2">
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Active Challenges</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Active Challenges</CardTitle>
             <CardDescription>Challenges that have been sent to {isCurrentUser ? "you" : "this user"}</CardDescription>
           </CardHeader>
           <CardContent>
             {challenges.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No active challenges</div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {challenges.map((challenge) => (
-                  <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar>
+                  <div key={challenge.id} className="p-3 bg-slate-700 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={challenge.challenger.avatar_url || undefined} />
                         <AvatarFallback>
                           {challenge.challenger.display_name?.charAt(0) ||
@@ -181,12 +181,12 @@ export function UserChallenges({ userId }: { userId: string }) {
                             "?"}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-medium">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
                           {challenge.challenger.display_name || challenge.challenger.username} challenged{" "}
                           {isCurrentUser ? "you" : "this user"}
                         </div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-gray-400 truncate">
                           {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
                           {challenge.quiz.title}
                         </div>
@@ -194,20 +194,22 @@ export function UserChallenges({ userId }: { userId: string }) {
                     </div>
 
                     {isCurrentUser && (
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex gap-2 mt-3">
                         <Button
                           onClick={() => handleAcceptChallenge(challenge.id, challenge.quiz_id)}
                           disabled={actionLoading}
                           className="flex-1"
+                          size="sm"
                         >
                           {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          Accept Challenge
+                          Accept
                         </Button>
                         <Button
                           variant="outline"
                           onClick={() => handleDeclineChallenge(challenge.id)}
                           disabled={actionLoading}
                           className="flex-1"
+                          size="sm"
                         >
                           Decline
                         </Button>
@@ -221,10 +223,10 @@ export function UserChallenges({ userId }: { userId: string }) {
         </Card>
       </TabsContent>
 
-      <TabsContent value="sent">
+      <TabsContent value="sent" className="mt-0 pt-2">
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Sent Challenges</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Sent Challenges</CardTitle>
             <CardDescription>
               Challenges that {isCurrentUser ? "you have" : "this user has"} sent to others
             </CardDescription>
@@ -233,11 +235,11 @@ export function UserChallenges({ userId }: { userId: string }) {
             {sentChallenges.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No sent challenges</div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {sentChallenges.map((challenge) => (
-                  <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar>
+                  <div key={challenge.id} className="p-3 bg-slate-700 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={challenge.recipient.avatar_url || undefined} />
                         <AvatarFallback>
                           {challenge.recipient.display_name?.charAt(0) ||
@@ -245,12 +247,12 @@ export function UserChallenges({ userId }: { userId: string }) {
                             "?"}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-medium">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
                           {isCurrentUser ? "You" : "This user"} challenged{" "}
                           {challenge.recipient.display_name || challenge.recipient.username}
                         </div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-gray-400 truncate">
                           {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
                           {challenge.quiz.title}
                         </div>
@@ -274,17 +276,17 @@ export function UserChallenges({ userId }: { userId: string }) {
         </Card>
       </TabsContent>
 
-      <TabsContent value="completed">
+      <TabsContent value="completed" className="mt-0 pt-2">
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle>Completed Challenges</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Completed Challenges</CardTitle>
             <CardDescription>Challenges that have been completed</CardDescription>
           </CardHeader>
           <CardContent>
             {completedChallenges.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No completed challenges</div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {completedChallenges.map((challenge) => {
                   const isChallenger = challenge.challenger_id === userId
                   const opponent = isChallenger ? challenge.recipient : challenge.challenger
@@ -294,21 +296,21 @@ export function UserChallenges({ userId }: { userId: string }) {
                   const isDraw = userScore === opponentScore
 
                   return (
-                    <div key={challenge.id} className="p-4 bg-slate-700 rounded-lg">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Avatar>
+                    <div key={challenge.id} className="p-3 bg-slate-700 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="h-8 w-8">
                           <AvatarImage src={opponent.avatar_url || undefined} />
                           <AvatarFallback>
                             {opponent.display_name?.charAt(0) || opponent.username?.charAt(0) || "?"}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="font-medium">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
                             {isChallenger
                               ? `You challenged ${opponent.display_name || opponent.username}`
                               : `${opponent.display_name || opponent.username} challenged you`}
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-sm text-gray-400 truncate">
                             {challenge.quiz.emoji && <span className="mr-1">{challenge.quiz.emoji}</span>}
                             {challenge.quiz.title}
                           </div>
