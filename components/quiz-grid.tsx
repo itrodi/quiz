@@ -138,7 +138,9 @@ export function QuizGrid({ filter = "all", category = null, searchQuery = "" }: 
                     </div>
                   )}
                 </div>
-                <Button size="sm">View Quiz</Button>
+                <Link href={`/quiz/preview/${quiz.id}`}>
+                  <Button size="sm">View Quiz</Button>
+                </Link>
               </div>
             </CardContent>
           </Link>

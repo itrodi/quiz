@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   const supabase = createClient()
 
   try {
-    const { recipient_username, quiz_id, challenger_score } = await request.json()
+    const { recipient_id, quiz_id } = await request.json()
 
     // Get the user's ID from the session
     const {
@@ -65,11 +65,11 @@ export async function POST(request: Request) {
 
     const challenger_id = session.user.id
 
-    // Get the recipient's ID from their username
+    // Validate that the recipient exists
     const { data: recipient, error: recipientError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("username", recipient_username)
+      .eq("id", recipient_id)
       .single()
 
     if (recipientError) {
@@ -81,9 +81,8 @@ export async function POST(request: Request) {
       .from("challenges")
       .insert({
         challenger_id,
-        recipient_id: recipient.id,
+        recipient_id,
         quiz_id,
-        challenger_score,
         status: "pending",
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
       })

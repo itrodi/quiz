@@ -1,14 +1,7 @@
-"use client"
-
-import { Button } from "@/components/ui/button"
-
+/**
+ * Stub component for Farcaster sign-in button.
+ * This is a placeholder since we've removed Farcaster functionality.
+ */
 export function FarcasterSignInButton() {
-  return (
-    <Button
-      onClick={() => alert("Authentication is currently disabled")}
-      className="w-full bg-purple-600 hover:bg-purple-700"
-    >
-      Sign in with Farcaster (Disabled)
-    </Button>
-  )
+  return null
 }

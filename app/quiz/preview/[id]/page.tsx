@@ -24,7 +24,7 @@ export default async function QuizPreviewPage({ params }: { params: { id: string
 
   if (quizError || !quiz) {
     console.error("Error fetching quiz:", quizError)
-    notFound()
+    return notFound()
   }
 
   // Fetch questions count
@@ -35,6 +35,7 @@ export default async function QuizPreviewPage({ params }: { params: { id: string
 
   if (countError) {
     console.error("Error fetching questions count:", countError)
+    // Don't return notFound() here, just log the error
   }
 
   // Fetch top scores
@@ -51,6 +52,7 @@ export default async function QuizPreviewPage({ params }: { params: { id: string
 
   if (scoresError) {
     console.error("Error fetching top scores:", scoresError)
+    // Don't return notFound() here, just log the error
   }
 
   // Format date

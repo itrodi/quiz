@@ -1,8 +1,8 @@
-import { SignInForm } from "@/components/auth/sign-in-form"
+import { SignUpForm } from "@/components/auth/sign-up-form"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
-export default async function LoginPage() {
+export default async function SignUpPage() {
   const supabase = createClient()
 
   // Check if user is already logged in
@@ -16,7 +16,7 @@ export default async function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <SignInForm />
+      <SignUpForm />
     </div>
   )
 }

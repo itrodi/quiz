@@ -41,7 +41,8 @@ export function MobileNav() {
           <Users className="w-5 h-5" />
           <span className="text-xs mt-1">Social</span>
         </Link>
-        <Link
+        {/* Use a direct href instead of Link component for testing */}
+        <a
           href="/leaderboard"
           className={cn(
             "inline-flex flex-col items-center justify-center px-5 hover:bg-slate-700",
@@ -50,7 +51,7 @@ export function MobileNav() {
         >
           <Trophy className="w-5 h-5" />
           <span className="text-xs mt-1">Leaderboard</span>
-        </Link>
+        </a>
         <Link
           href="/profile"
           className={cn(
