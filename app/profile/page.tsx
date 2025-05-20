@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { UserQuizzes } from "@/components/user-quizzes"
 import { UserAchievements } from "@/components/user-achievements"
 import { UserChallenges } from "@/components/user-challenges"
 import { Loader2, PencilIcon } from "lucide-react"
@@ -14,7 +13,6 @@ import { useAuth } from "@/contexts/auth-kit-context"
 import Link from "next/link"
 
 export default function ProfilePage() {
-  const [userQuizzes, setUserQuizzes] = useState<any[]>([])
   const [userAchievements, setUserAchievements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
@@ -26,18 +24,6 @@ export default function ProfilePage() {
 
       setLoading(true)
       try {
-        // Get user's quizzes
-        const { data: quizzes } = await supabase
-          .from("quizzes")
-          .select(`
-            *,
-            categories(*)
-          `)
-          .eq("creator_id", profile.id)
-          .order("created_at", { ascending: false })
-
-        setUserQuizzes(quizzes || [])
-
         // Get user's achievements
         const { data: achievements } = await supabase
           .from("user_achievements")
@@ -127,16 +113,11 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="quizzes">
+      <Tabs defaultValue="challenges">
         <TabsList className="mb-6">
-          <TabsTrigger value="quizzes">My Quizzes</TabsTrigger>
           <TabsTrigger value="achievements">Achievements</TabsTrigger>
           <TabsTrigger value="challenges">Challenges</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="quizzes">
-          <UserQuizzes quizzes={userQuizzes} />
-        </TabsContent>
 
         <TabsContent value="achievements">
           <UserAchievements achievements={userAchievements} />
