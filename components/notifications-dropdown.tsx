@@ -21,28 +21,66 @@ export function NotificationsDropdown() {
   const [challenges, setChallenges] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
+    // Create the Supabase client inside the effect to ensure it's only created in the browser
+    const supabase = createClient()
+
     const fetchNotifications = async () => {
       setLoading(true)
       try {
-        // Get friend requests
-        const { data: requests } = await supabase
+        // Get current user
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.user) {
+          setLoading(false)
+          return
+        }
+
+        // Get friend requests - using separate queries instead of joins
+        const { data: friendsData, error: friendsError } = await supabase
           .from("friends")
-          .select(`
-            id,
-            sender_id,
-            status,
-            created_at,
-            profiles!friends_sender_id_fkey(username, display_name, avatar_url)
-          `)
+          .select("*")
+          .eq("recipient_id", session.user.id)
           .eq("status", "pending")
           .order("created_at", { ascending: false })
 
+        if (friendsError) {
+          console.error("Error fetching friend requests:", friendsError)
+        }
+
+        // If we have friend requests, fetch the sender profiles
+        let enrichedFriendRequests: any[] = []
+        if (friendsData && friendsData.length > 0) {
+          // Get all sender IDs
+          const senderIds = friendsData.map((request) => request.sender_id)
+
+          // Fetch profiles for these senders
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .in("id", senderIds)
+
+          if (profilesError) {
+            console.error("Error fetching profiles:", profilesError)
+          }
+
+          // Combine the data
+          if (profilesData) {
+            enrichedFriendRequests = friendsData.map((request) => {
+              const senderProfile = profilesData.find((profile) => profile.id === request.sender_id)
+              return {
+                ...request,
+                sender_profile: senderProfile || { username: "Unknown", display_name: "Unknown User" },
+              }
+            })
+          }
+        }
+
         // Get challenge notifications
-        const { data: challengeData } = await supabase
+        const { data: challengeData, error: challengesError } = await supabase
           .from("challenges")
           .select(`
             id,
@@ -52,21 +90,76 @@ export function NotificationsDropdown() {
             quiz_id,
             challenger_score,
             recipient_score,
-            created_at,
-            challenger:profiles!challenges_challenger_id_fkey(username, display_name, avatar_url),
-            recipient:profiles!challenges_recipient_id_fkey(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            created_at
           `)
+          .or(`challenger_id.eq.${session.user.id},recipient_id.eq.${session.user.id}`)
           .order("created_at", { ascending: false })
           .limit(10)
 
-        setFriendRequests(requests || [])
-        setChallenges(challengeData || [])
+        if (challengesError) {
+          console.error("Error fetching challenges:", challengesError)
+        }
+
+        // Enrich challenge data with profiles and quiz info
+        let enrichedChallenges: any[] = []
+        if (challengeData && challengeData.length > 0) {
+          // Get all user IDs involved in challenges
+          const userIds = new Set<string>()
+          challengeData.forEach((challenge) => {
+            userIds.add(challenge.challenger_id)
+            userIds.add(challenge.recipient_id)
+          })
+
+          // Get all quiz IDs
+          const quizIds = challengeData.map((challenge) => challenge.quiz_id)
+
+          // Fetch profiles
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .in("id", Array.from(userIds))
+
+          if (profilesError) {
+            console.error("Error fetching profiles for challenges:", profilesError)
+          }
+
+          // Fetch quizzes
+          const { data: quizzesData, error: quizzesError } = await supabase
+            .from("quizzes")
+            .select("id, title, emoji")
+            .in("id", quizIds)
+
+          if (quizzesError) {
+            console.error("Error fetching quizzes:", quizzesError)
+          }
+
+          // Combine the data
+          if (profilesData && quizzesData) {
+            enrichedChallenges = challengeData.map((challenge) => {
+              const challengerProfile = profilesData.find((profile) => profile.id === challenge.challenger_id)
+              const recipientProfile = profilesData.find((profile) => profile.id === challenge.recipient_id)
+              const quiz = quizzesData.find((quiz) => quiz.id === challenge.quiz_id)
+
+              return {
+                ...challenge,
+                challenger: challengerProfile || { username: "Unknown", display_name: "Unknown User" },
+                recipient: recipientProfile || { username: "Unknown", display_name: "Unknown User" },
+                quiz: quiz || { title: "Unknown Quiz", emoji: "❓" },
+              }
+            })
+          }
+        }
+
+        setFriendRequests(enrichedFriendRequests || [])
+        setChallenges(enrichedChallenges || [])
 
         // Calculate unread count
         const totalUnread =
-          (requests?.length || 0) +
-          (challengeData?.filter((c: any) => c.status === "pending" || c.status === "accepted")?.length || 0)
+          (enrichedFriendRequests?.length || 0) +
+          (enrichedChallenges?.filter(
+            (c: any) =>
+              (c.status === "pending" && c.recipient_id === session.user.id) || (c.status === "completed" && !c.seen),
+          )?.length || 0)
         setUnreadCount(totalUnread)
       } catch (error) {
         console.error("Error fetching notifications:", error)
@@ -75,22 +168,14 @@ export function NotificationsDropdown() {
       }
     }
 
+    // Initial fetch
     fetchNotifications()
 
-    // Set up real-time subscription for new notifications
-    const friendsSubscription = supabase
-      .channel("friends-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "friends" }, fetchNotifications)
-      .subscribe()
-
-    const challengesSubscription = supabase
-      .channel("challenges-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "challenges" }, fetchNotifications)
-      .subscribe()
+    // Set up polling instead of real-time subscriptions
+    const pollingInterval = setInterval(fetchNotifications, 10000) // Poll every 10 seconds
 
     return () => {
-      supabase.removeChannel(friendsSubscription)
-      supabase.removeChannel(challengesSubscription)
+      clearInterval(pollingInterval)
     }
   }, [])
 
@@ -131,7 +216,8 @@ export function NotificationsDropdown() {
                       <div className="h-8 w-8 rounded-full bg-slate-700 flex-shrink-0"></div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
-                          {request.profiles.display_name || request.profiles.username} sent you a friend request
+                          {request.sender_profile.display_name || request.sender_profile.username} sent you a friend
+                          request
                         </p>
                         <p className="text-xs text-gray-500">{new Date(request.created_at).toLocaleDateString()}</p>
                       </div>
@@ -153,6 +239,8 @@ export function NotificationsDropdown() {
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="text-xs font-normal text-gray-500">Challenges</DropdownMenuLabel>
                 {challenges.slice(0, 3).map((challenge) => {
+                  // Create a new client for each render to avoid stale data
+                  const supabase = createClient()
                   const {
                     data: { session },
                   } = supabase.auth.getSession()
@@ -191,7 +279,9 @@ export function NotificationsDropdown() {
                         <div className="h-8 w-8 rounded-full bg-slate-700 flex-shrink-0"></div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">{otherUser.display_name || otherUser.username}</p>
+                            <p className="font-medium truncate">
+                              {otherUser?.display_name || otherUser?.username || "User"}
+                            </p>
                             <Badge
                               variant={
                                 statusBadge === "won" ? "success" : statusBadge === "lost" ? "destructive" : "outline"
@@ -202,7 +292,7 @@ export function NotificationsDropdown() {
                             </Badge>
                           </div>
                           <p className="text-sm truncate">
-                            {statusText} - {challenge.quiz.emoji} {challenge.quiz.title}
+                            {statusText} - {challenge.quiz?.emoji || "🎮"} {challenge.quiz?.title || "Quiz"}
                           </p>
                           <p className="text-xs text-gray-500">{new Date(challenge.created_at).toLocaleDateString()}</p>
                         </div>
