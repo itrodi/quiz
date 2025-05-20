@@ -13,7 +13,7 @@ export default function Home() {
         <div className="flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-purple-600 mb-3">
           <Brain className="h-6 w-6 md:h-8 md:w-8 text-white" />
         </div>
-        <h1 className="text-2xl md:text-4xl font-bold text-white">BrainCast</h1>
+        <h1 className="text-2xl md:text-4xl font-bold text-white">FarQuiz</h1>
         <p className="text-sm md:text-base text-slate-300">The Ultimate Quiz Experience</p>
       </div>
 

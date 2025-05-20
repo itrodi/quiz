@@ -151,16 +151,16 @@ export default function SocialPage() {
     <div className="container max-w-md md:max-w-4xl mx-auto px-4 py-4 md:py-8">
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Social</h1>
 
-      <Tabs defaultValue="search">
-        <TabsList className="mb-6">
-          <TabsTrigger value="search">Search Users</TabsTrigger>
+      <Tabs defaultValue="search" className="space-y-4">
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="search">Search</TabsTrigger>
           <TabsTrigger value="friends">Friends</TabsTrigger>
-          <TabsTrigger value="requests">Friend Requests</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="search">
-          <div className="mb-6">
-            <div className="relative md:max-w-md">
+        <TabsContent value="search" className="mt-0 pt-2">
+          <div className="mb-4 md:mb-6">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <Input
                 type="search"
@@ -173,47 +173,55 @@ export default function SocialPage() {
           </div>
 
           <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
+            <CardHeader className="px-4 py-3 md:px-6 md:py-4">
+              <CardTitle className="text-lg md:text-xl">Users</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 py-3 md:px-6 md:py-4">
               {loading ? (
-                <div className="flex justify-center py-8">
+                <div className="flex justify-center py-6 md:py-8">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 md:gap-4">
                   {users.map((user) => {
                     const isCurrentUser = profile?.id === user.id
                     const friendStatus = friends[user.id]
 
                     return (
-                      <div key={user.id} className="flex items-center justify-between p-3 bg-slate-700 rounded-lg">
+                      <div
+                        key={user.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-700 rounded-lg gap-3"
+                      >
                         <div className="flex items-center gap-3">
-                          <Avatar>
+                          <Avatar className="h-10 w-10">
                             <AvatarImage src={user.avatar_url || undefined} />
                             <AvatarFallback>
                               {user.display_name?.charAt(0) || user.username?.charAt(0) || "?"}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">{user.display_name || user.username || "Anonymous"}</div>
-                            {user.username && <div className="text-sm text-gray-400">@{user.username}</div>}
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">
+                              {user.display_name || user.username || "Anonymous"}
+                            </div>
+                            {user.username && <div className="text-sm text-gray-400 truncate">@{user.username}</div>}
+                            <div className="text-sm font-semibold sm:hidden mt-1">{user.total_score} points</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right mr-2">
+
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          <div className="text-right mr-2 hidden sm:block">
                             <div className="font-bold">{user.total_score} points</div>
                           </div>
 
                           {!isCurrentUser && (
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-2 justify-end">
                               {friendStatus !== "accepted" && (
                                 <Button
                                   size="sm"
                                   variant={friendStatus ? "outline" : "default"}
                                   onClick={() => handleAddFriend(user.id)}
                                   disabled={!!friendStatus || actionLoading[user.id] || isCurrentUser}
+                                  className="w-full sm:w-auto"
                                 >
                                   {actionLoading[user.id] ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -234,19 +242,20 @@ export default function SocialPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleChallenge(user.id, user.display_name || user.username || "User")}
+                                className="w-full sm:w-auto"
                               >
                                 <Swords className="h-4 w-4 mr-1" />
                                 Challenge
                               </Button>
 
-                              <Button size="sm" variant="outline" asChild>
+                              <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
                                 <Link href={`/social/profile/${user.id}`}>View</Link>
                               </Button>
                             </div>
                           )}
 
                           {isCurrentUser && (
-                            <Button size="sm" variant="outline" asChild>
+                            <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
                               <Link href="/profile">View</Link>
                             </Button>
                           )}
@@ -255,20 +264,18 @@ export default function SocialPage() {
                     )
                   })}
 
-                  {users.length === 0 && (
-                    <div className="text-center py-8 text-gray-400 col-span-2">No users found</div>
-                  )}
+                  {users.length === 0 && <div className="text-center py-6 md:py-8 text-gray-400">No users found</div>}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="friends">
+        <TabsContent value="friends" className="mt-0 pt-2">
           <FriendsList />
         </TabsContent>
 
-        <TabsContent value="requests">
+        <TabsContent value="requests" className="mt-0 pt-2">
           <FriendRequests />
         </TabsContent>
       </Tabs>
