@@ -9,6 +9,7 @@ import { Loader2, Trophy, Clock, Share2, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-kit-context"
+import { toast } from "@/components/ui/use-toast"
 
 export default function ChallengeResultPage({ params }: { params: { id: string } }) {
   const [challenge, setChallenge] = useState<any>(null)
@@ -24,15 +25,20 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
     const fetchChallengeData = async () => {
       setLoading(true)
       try {
+        console.log("Fetching challenge data for ID:", challengeId)
+
         // Get the current user's ID
         const {
           data: { session },
         } = await supabase.auth.getSession()
         if (!session?.user) {
+          console.error("No session found")
           setError("You must be logged in to view challenge results")
           setLoading(false)
           return
         }
+
+        console.log("User authenticated:", session.user.id)
 
         // Get the challenge data
         const { data: challengeData, error: challengeError } = await supabase
@@ -53,6 +59,8 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
           return
         }
 
+        console.log("Challenge data retrieved:", challengeData)
+
         setChallenge(challengeData)
         setQuiz(challengeData.quiz)
 
@@ -60,6 +68,8 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
         const isChallenger = challengeData.challenger_id === session.user.id
         const opponentProfile = isChallenger ? challengeData.recipient : challengeData.challenger
         setOpponent(opponentProfile)
+
+        console.log("Opponent set:", opponentProfile)
       } catch (error) {
         console.error("Error in challenge results:", error)
         setError("An error occurred while loading challenge results")
@@ -68,8 +78,10 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
       }
     }
 
-    fetchChallengeData()
-  }, [challengeId])
+    if (challengeId) {
+      fetchChallengeData()
+    }
+  }, [challengeId, supabase])
 
   const getResultMessage = () => {
     if (!challenge || !profile) return "Challenge results"
@@ -147,7 +159,7 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
       <div className="container max-w-md md:max-w-2xl mx-auto px-4 py-8">
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="p-6 text-center">
-            <p className="text-red-400 mb-4">Challenge not found</p>
+            <p className="text-red-400 mb-4">Challenge not found or still loading</p>
             <Button asChild>
               <Link href="/explore">Browse Quizzes</Link>
             </Button>
@@ -247,20 +259,39 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() =>
-              navigator
-                .share({
-                  title: `My ${quiz?.title || "Quiz"} Challenge Result`,
-                  text: `I scored ${userScore}/${totalQuestions} (${userPercentage}%) on the ${quiz?.title || "Quiz"} challenge!`,
-                  url: window.location.href,
+            onClick={() => {
+              if (navigator.share) {
+                navigator
+                  .share({
+                    title: `My ${quiz?.title || "Quiz"} Challenge Result`,
+                    text: `I scored ${userScore}/${totalQuestions} (${userPercentage}%) on the ${
+                      quiz?.title || "Quiz"
+                    } challenge!`,
+                    url: window.location.href,
+                  })
+                  .catch(() => {
+                    navigator.clipboard.writeText(
+                      `I scored ${userScore}/${totalQuestions} (${userPercentage}%) on the ${
+                        quiz?.title || "Quiz"
+                      } challenge! Try it yourself: ${window.location.href}`,
+                    )
+                    toast({
+                      title: "Result copied to clipboard!",
+                      description: "Share it with your friends!",
+                    })
+                  })
+              } else {
+                navigator.clipboard.writeText(
+                  `I scored ${userScore}/${totalQuestions} (${userPercentage}%) on the ${
+                    quiz?.title || "Quiz"
+                  } challenge! Try it yourself: ${window.location.href}`,
+                )
+                toast({
+                  title: "Result copied to clipboard!",
+                  description: "Share it with your friends!",
                 })
-                .catch(() => {
-                  navigator.clipboard.writeText(
-                    `I scored ${userScore}/${totalQuestions} (${userPercentage}%) on the ${quiz?.title || "Quiz"} challenge! Try it yourself: ${window.location.href}`,
-                  )
-                  alert("Result copied to clipboard!")
-                })
-            }
+              }
+            }}
           >
             <Share2 className="mr-2 h-4 w-4" />
             Share Result

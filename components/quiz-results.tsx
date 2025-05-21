@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trophy, Clock, ArrowRight, Share2, Check, X } from "lucide-react"
+import { Trophy, Clock, ArrowRight, Share2, Check, X, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useSearchParams, useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
 
 interface QuizResultsProps {
   score: number
@@ -34,21 +35,22 @@ export function QuizResults({
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [submittingChallenge, setSubmittingChallenge] = useState(false)
+  const [challengeSubmitted, setChallengeSubmitted] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
   const challengeId = searchParams.get("challenge")
   const supabase = createClient()
 
   const percentage = Math.round((score / totalQuestions) * 100)
-  const minutes = Math.floor(timeTaken / 60)
-  const seconds = timeTaken % 60
 
   useEffect(() => {
     // If this is a challenge, submit the score and redirect to the challenge result page
-    if (challengeId) {
+    if (challengeId && !challengeSubmitted) {
       const submitChallengeScore = async () => {
         setSubmittingChallenge(true)
         try {
+          console.log("Submitting challenge score:", { challengeId, score })
+
           const response = await fetch(`/api/challenges/${challengeId}/complete`, {
             method: "POST",
             headers: {
@@ -58,13 +60,22 @@ export function QuizResults({
           })
 
           if (!response.ok) {
-            throw new Error("Failed to submit challenge score")
+            const errorData = await response.json()
+            throw new Error(errorData.error || "Failed to submit challenge score")
           }
 
+          setChallengeSubmitted(true)
+
           // Redirect to the challenge result page
+          console.log("Challenge score submitted, redirecting to result page")
           router.push(`/quiz/challenge-result/${challengeId}`)
         } catch (error) {
           console.error("Error submitting challenge score:", error)
+          toast({
+            title: "Error submitting challenge score",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
+            variant: "destructive",
+          })
           // Continue showing the regular results if there's an error
           setSubmittingChallenge(false)
         }
@@ -75,37 +86,40 @@ export function QuizResults({
     }
 
     // If not a challenge, check leaderboard position
-    async function checkLeaderboard() {
-      setIsLoading(true)
-      try {
-        // Get all scores for this quiz
-        const { data: scores } = await supabase
-          .from("user_scores")
-          .select("score, percentage")
-          .eq("quiz_id", quizId)
-          .order("percentage", { ascending: false })
+    if (!challengeId) {
+      async function checkLeaderboard() {
+        setIsLoading(true)
+        try {
+          // Get all scores for this quiz
+          const { data: scores } = await supabase
+            .from("user_scores")
+            .select("score, percentage")
+            .eq("quiz_id", quizId)
+            .order("percentage", { ascending: false })
 
-        if (scores && scores.length > 0) {
-          // Find position of current score
-          const position = scores.findIndex((s) => s.percentage < percentage) + 1
-          setLeaderboardPosition(position > 0 ? position : scores.length + 1)
+          if (scores && scores.length > 0) {
+            // Find position of current score
+            const position = scores.findIndex((s) => s.percentage < percentage) + 1
+            setLeaderboardPosition(position > 0 ? position : scores.length + 1)
+          }
+        } catch (error) {
+          console.error("Error checking leaderboard:", error)
+        } finally {
+          setIsLoading(false)
         }
-      } catch (error) {
-        console.error("Error checking leaderboard:", error)
-      } finally {
-        setIsLoading(false)
       }
-    }
 
-    checkLeaderboard()
-  }, [quizId, percentage, supabase, challengeId, score, router])
+      checkLeaderboard()
+    }
+  }, [quizId, percentage, supabase, challengeId, score, router, challengeSubmitted])
 
   // If submitting challenge score, show loading
   if (submittingChallenge) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-purple-500 mb-4" />
         <p className="text-center text-gray-400">Submitting your challenge result...</p>
+        <p className="text-center text-gray-500 text-sm mt-2">Please wait, you'll be redirected to the results page.</p>
       </div>
     )
   }
@@ -186,6 +200,23 @@ export function QuizResults({
               </div>
             </div>
           </div>
+
+          {challengeId && (
+            <div className="mt-4 p-3 bg-purple-900/30 border border-purple-800/50 rounded-lg">
+              <p className="text-center text-sm">
+                This was a challenge quiz. Your score has been submitted.
+                {challengeSubmitted ? (
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-purple-400 ml-1"
+                    onClick={() => router.push(`/quiz/challenge-result/${challengeId}`)}
+                  >
+                    View challenge results
+                  </Button>
+                ) : null}
+              </p>
+            </div>
+          )}
 
           {questions && answers && results && (
             <div className="mt-6">
