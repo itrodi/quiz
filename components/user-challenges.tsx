@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-kit-context"
 import { toast } from "@/components/ui/use-toast"
+import Link from "next/link"
 
 export function UserChallenges({ userId }: { userId: string }) {
   const [challenges, setChallenges] = useState<any[]>([])
@@ -27,38 +28,61 @@ export function UserChallenges({ userId }: { userId: string }) {
     const fetchChallenges = async () => {
       setLoading(true)
       try {
+        console.log("Fetching challenges for user:", userId)
+
         // Fetch active challenges (pending challenges where the user is the recipient)
-        const { data: activeChallenges } = await supabase
+        const { data: activeChallenges, error: activeError } = await supabase
           .from("challenges")
           .select(`
             *,
-            challenger:profiles!challenger_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            challenger:profiles!challenger_id(id, username, display_name, avatar_url),
+            quiz:quizzes(id, title, emoji)
           `)
           .eq("recipient_id", userId)
           .eq("status", "pending")
+          .order("created_at", { ascending: false })
+
+        if (activeError) {
+          console.error("Error fetching active challenges:", activeError)
+        } else {
+          console.log("Active challenges:", activeChallenges)
+        }
 
         // Fetch sent challenges (challenges where the user is the challenger)
-        const { data: userSentChallenges } = await supabase
+        const { data: userSentChallenges, error: sentError } = await supabase
           .from("challenges")
           .select(`
             *,
-            recipient:profiles!recipient_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            recipient:profiles!recipient_id(id, username, display_name, avatar_url),
+            quiz:quizzes(id, title, emoji)
           `)
           .eq("challenger_id", userId)
+          .order("created_at", { ascending: false })
+
+        if (sentError) {
+          console.error("Error fetching sent challenges:", sentError)
+        } else {
+          console.log("Sent challenges:", userSentChallenges)
+        }
 
         // Fetch completed challenges
-        const { data: userCompletedChallenges } = await supabase
+        const { data: userCompletedChallenges, error: completedError } = await supabase
           .from("challenges")
           .select(`
             *,
-            challenger:profiles!challenger_id(username, display_name, avatar_url),
-            recipient:profiles!recipient_id(username, display_name, avatar_url),
-            quiz:quizzes(title, emoji)
+            challenger:profiles!challenger_id(id, username, display_name, avatar_url),
+            recipient:profiles!recipient_id(id, username, display_name, avatar_url),
+            quiz:quizzes(id, title, emoji)
           `)
           .or(`challenger_id.eq.${userId},recipient_id.eq.${userId}`)
           .eq("status", "completed")
+          .order("created_at", { ascending: false })
+
+        if (completedError) {
+          console.error("Error fetching completed challenges:", completedError)
+        } else {
+          console.log("Completed challenges:", userCompletedChallenges)
+        }
 
         setChallenges(activeChallenges || [])
         setSentChallenges(userSentChallenges || [])
@@ -70,7 +94,31 @@ export function UserChallenges({ userId }: { userId: string }) {
       }
     }
 
-    fetchChallenges()
+    if (userId) {
+      fetchChallenges()
+    }
+
+    // Set up a subscription to refresh the data when challenges change
+    const challengesSubscription = supabase
+      .channel("challenges-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "challenges",
+        },
+        () => {
+          if (userId) {
+            fetchChallenges()
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(challengesSubscription)
+    }
   }, [userId])
 
   const handleAcceptChallenge = async (challengeId: string, quizId: string) => {
@@ -85,16 +133,17 @@ export function UserChallenges({ userId }: { userId: string }) {
 
     setActionLoading(true)
     try {
-      await fetch(`/api/challenges/${challengeId}/accept`, {
-        method: "POST",
-      })
+      // Update the challenge status directly
+      const { error } = await supabase.from("challenges").update({ status: "accepted" }).eq("id", challengeId)
+
+      if (error) throw error
 
       toast({
         title: "Challenge accepted!",
         description: "Take the quiz now to complete the challenge.",
       })
 
-      // Redirect to the quiz
+      // Redirect to the quiz with the challenge ID
       router.push(`/quiz/${quizId}?challenge=${challengeId}`)
     } catch (error) {
       console.error("Error accepting challenge:", error)
@@ -120,17 +169,18 @@ export function UserChallenges({ userId }: { userId: string }) {
 
     setActionLoading(true)
     try {
-      await fetch(`/api/challenges/${challengeId}/decline`, {
-        method: "POST",
-      })
+      // Update the challenge status directly
+      const { error } = await supabase.from("challenges").update({ status: "declined" }).eq("id", challengeId)
+
+      if (error) throw error
+
+      // Remove the challenge from the list
+      setChallenges(challenges.filter((challenge) => challenge.id !== challengeId))
 
       toast({
         title: "Challenge declined",
         description: "The challenge has been declined.",
       })
-
-      // Remove the challenge from the list
-      setChallenges(challenges.filter((challenge) => challenge.id !== challengeId))
     } catch (error) {
       console.error("Error declining challenge:", error)
       toast({
@@ -267,6 +317,11 @@ export function UserChallenges({ userId }: { userId: string }) {
                           Your score: <span className="font-bold">{challenge.challenger_score}</span>
                         </div>
                       )}
+                      {challenge.challenger_score !== null && isCurrentUser && (
+                        <Button size="sm" variant="outline" asChild className="ml-2">
+                          <Link href={`/quiz/challenge-result/${challenge.id}`}>View Result</Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -323,6 +378,11 @@ export function UserChallenges({ userId }: { userId: string }) {
                         <div className="text-sm">
                           {userScore} - {opponentScore}
                         </div>
+                        {isCurrentUser && (
+                          <Button size="sm" variant="outline" asChild className="ml-2">
+                            <Link href={`/quiz/challenge-result/${challenge.id}`}>View Details</Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )

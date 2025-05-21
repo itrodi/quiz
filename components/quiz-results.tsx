@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, Clock, ArrowRight, Share2, Check, X } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { useSearchParams, useRouter } from "next/navigation"
 
 interface QuizResultsProps {
   score: number
@@ -32,6 +33,10 @@ export function QuizResults({
 }: QuizResultsProps) {
   const [leaderboardPosition, setLeaderboardPosition] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [submittingChallenge, setSubmittingChallenge] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const challengeId = searchParams.get("challenge")
   const supabase = createClient()
 
   const percentage = Math.round((score / totalQuestions) * 100)
@@ -39,6 +44,37 @@ export function QuizResults({
   const seconds = timeTaken % 60
 
   useEffect(() => {
+    // If this is a challenge, submit the score and redirect to the challenge result page
+    if (challengeId) {
+      const submitChallengeScore = async () => {
+        setSubmittingChallenge(true)
+        try {
+          const response = await fetch(`/api/challenges/${challengeId}/complete`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ score }),
+          })
+
+          if (!response.ok) {
+            throw new Error("Failed to submit challenge score")
+          }
+
+          // Redirect to the challenge result page
+          router.push(`/quiz/challenge-result/${challengeId}`)
+        } catch (error) {
+          console.error("Error submitting challenge score:", error)
+          // Continue showing the regular results if there's an error
+          setSubmittingChallenge(false)
+        }
+      }
+
+      submitChallengeScore()
+      return
+    }
+
+    // If not a challenge, check leaderboard position
     async function checkLeaderboard() {
       setIsLoading(true)
       try {
@@ -62,7 +98,17 @@ export function QuizResults({
     }
 
     checkLeaderboard()
-  }, [quizId, percentage, supabase])
+  }, [quizId, percentage, supabase, challengeId, score, router])
+
+  // If submitting challenge score, show loading
+  if (submittingChallenge) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+        <p className="text-center text-gray-400">Submitting your challenge result...</p>
+      </div>
+    )
+  }
 
   const getResultMessage = () => {
     if (percentage >= 90) return "Excellent! You're a master!"

@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       throw updateError
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, challengeId })
   } catch (error) {
     console.error("Error completing challenge:", error)
     return NextResponse.json({ error: "Failed to complete challenge" }, { status: 500 })

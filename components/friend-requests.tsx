@@ -6,21 +6,70 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Loader2, Check, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { createClient } from "@/lib/supabase/client"
 
 export function FriendRequests() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const supabase = createClient()
 
   useEffect(() => {
     const fetchFriendRequests = async () => {
       setLoading(true)
       try {
-        const response = await fetch("/api/friends?status=pending")
-        if (!response.ok) throw new Error("Failed to fetch friend requests")
+        // Get the current user's ID
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.user) {
+          setLoading(false)
+          return
+        }
 
-        const data = await response.json()
-        setRequests(data)
+        // Get all pending friend requests sent to the current user
+        const { data: friendRequests, error: requestsError } = await supabase
+          .from("friends")
+          .select("id, created_at, sender_id, recipient_id, status")
+          .eq("recipient_id", session.user.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+
+        if (requestsError) {
+          console.error("Error fetching friend requests:", requestsError)
+          setLoading(false)
+          return
+        }
+
+        if (!friendRequests || friendRequests.length === 0) {
+          setRequests([])
+          setLoading(false)
+          return
+        }
+
+        // Get all sender profiles
+        const senderIds = friendRequests.map((request) => request.sender_id)
+        const { data: senderProfiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", senderIds)
+
+        if (profilesError) {
+          console.error("Error fetching sender profiles:", profilesError)
+          setLoading(false)
+          return
+        }
+
+        // Combine the data
+        const enrichedRequests = friendRequests.map((request) => {
+          const senderProfile = senderProfiles?.find((profile) => profile.id === request.sender_id)
+          return {
+            ...request,
+            sender: senderProfile || { id: request.sender_id, username: "Unknown", display_name: "Unknown User" },
+          }
+        })
+
+        setRequests(enrichedRequests)
       } catch (error) {
         console.error("Error fetching friend requests:", error)
       } finally {
@@ -29,17 +78,36 @@ export function FriendRequests() {
     }
 
     fetchFriendRequests()
+
+    // Set up a subscription to refresh the data when friend requests change
+    const friendsSubscription = supabase
+      .channel("friends-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "friends",
+        },
+        () => {
+          fetchFriendRequests()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(friendsSubscription)
+    }
   }, [])
 
   const handleAccept = async (requestId: string) => {
     setActionLoading((prev) => ({ ...prev, [requestId]: true }))
 
     try {
-      const response = await fetch(`/api/friends/${requestId}/accept`, {
-        method: "POST",
-      })
+      // Update the friend request status directly
+      const { error } = await supabase.from("friends").update({ status: "accepted" }).eq("id", requestId)
 
-      if (!response.ok) throw new Error("Failed to accept friend request")
+      if (error) throw error
 
       // Remove the request from the list
       setRequests(requests.filter((req) => req.id !== requestId))
@@ -64,11 +132,10 @@ export function FriendRequests() {
     setActionLoading((prev) => ({ ...prev, [requestId]: true }))
 
     try {
-      const response = await fetch(`/api/friends/${requestId}/decline`, {
-        method: "POST",
-      })
+      // Delete the friend request directly
+      const { error } = await supabase.from("friends").delete().eq("id", requestId)
 
-      if (!response.ok) throw new Error("Failed to decline friend request")
+      if (error) throw error
 
       // Remove the request from the list
       setRequests(requests.filter((req) => req.id !== requestId))
