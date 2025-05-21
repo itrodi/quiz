@@ -15,6 +15,7 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
   const [challenge, setChallenge] = useState<any>(null)
   const [quiz, setQuiz] = useState<any>(null)
   const [opponent, setOpponent] = useState<any>(null)
+  const [totalQuestions, setTotalQuestions] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { profile } = useAuth()
@@ -40,14 +41,14 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
 
         console.log("User authenticated:", session.user.id)
 
-        // Get the challenge data
+        // Get the challenge data - don't select questions directly from quizzes
         const { data: challengeData, error: challengeError } = await supabase
           .from("challenges")
           .select(`
             *,
             challenger:profiles!challenger_id(id, username, display_name, avatar_url),
             recipient:profiles!recipient_id(id, username, display_name, avatar_url),
-            quiz:quizzes(id, title, emoji, description, questions)
+            quiz:quizzes(id, title, emoji, description)
           `)
           .eq("id", challengeId)
           .single()
@@ -70,6 +71,21 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
         setOpponent(opponentProfile)
 
         console.log("Opponent set:", opponentProfile)
+
+        // Fetch the number of questions for this quiz in a separate query
+        if (challengeData.quiz) {
+          const { count, error: countError } = await supabase
+            .from("questions")
+            .select("*", { count: "exact", head: true })
+            .eq("quiz_id", challengeData.quiz.id)
+
+          if (countError) {
+            console.error("Error counting questions:", countError)
+          } else {
+            console.log("Total questions:", count)
+            setTotalQuestions(count || 0)
+          }
+        }
       } catch (error) {
         console.error("Error in challenge results:", error)
         setError("An error occurred while loading challenge results")
@@ -115,18 +131,12 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
     }
 
     if (userScore > opponentScore) {
-      return <Badge variant="success">Won</Badge>
+      return <Badge className="bg-green-500 hover:bg-green-600">Won</Badge>
     } else if (userScore < opponentScore) {
-      return <Badge variant="destructive">Lost</Badge>
+      return <Badge className="bg-red-500 hover:bg-red-600">Lost</Badge>
     } else {
       return <Badge variant="outline">Draw</Badge>
     }
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}m ${secs}s`
   }
 
   if (loading) {
@@ -172,7 +182,6 @@ export default function ChallengeResultPage({ params }: { params: { id: string }
   const isChallenger = challenge.challenger_id === profile.id
   const userScore = isChallenger ? challenge.challenger_score : challenge.recipient_score
   const opponentScore = isChallenger ? challenge.recipient_score : challenge.challenger_score
-  const totalQuestions = quiz?.questions?.length || 0
   const userPercentage = totalQuestions > 0 ? Math.round((userScore / totalQuestions) * 100) : 0
   const opponentPercentage =
     opponentScore !== null && totalQuestions > 0 ? Math.round((opponentScore / totalQuestions) * 100) : null
