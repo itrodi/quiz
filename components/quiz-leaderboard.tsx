@@ -20,8 +20,7 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
   const [userRank, setUserRank] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"all" | "friends">("all")
-  const { profile } = useAuth()
+  const { profile, isAuthenticated } = useAuth()
   const supabase = createClient()
 
   // Format time (seconds) to mm:ss
@@ -36,7 +35,7 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
     if (isOpen) {
       fetchLeaderboardData()
     }
-  }, [isOpen, quizId, activeTab])
+  }, [isOpen, quizId])
 
   const fetchLeaderboardData = async () => {
     if (!quizId) return
@@ -68,7 +67,9 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
       setScores(leaderboardData || [])
 
       // If user is logged in, fetch their score
-      if (profile?.id) {
+      if (isAuthenticated && profile?.id) {
+        console.log("Fetching user score for profile ID:", profile.id)
+
         const { data: userScoreData, error: userScoreError } = await supabase
           .from("user_scores")
           .select(`
@@ -84,24 +85,41 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
           .eq("user_id", profile.id)
           .order("percentage", { ascending: false })
           .limit(1)
-          .single()
 
-        if (!userScoreError && userScoreData) {
-          setUserScore(userScoreData)
+        if (userScoreError) {
+          console.error("Error fetching user score:", userScoreError)
+        } else {
+          console.log("User score data:", userScoreData)
 
-          // Calculate user's rank
-          const { count, error: rankError } = await supabase
-            .from("user_scores")
-            .select("*", { count: "exact", head: true })
-            .eq("quiz_id", quizId)
-            .or(
-              `percentage.gt.${userScoreData.percentage}, and(percentage.eq.${userScoreData.percentage}, time_taken.lt.${userScoreData.time_taken})`,
-            )
+          if (userScoreData && userScoreData.length > 0) {
+            const bestScore = userScoreData[0]
+            setUserScore(bestScore)
 
-          if (!rankError) {
-            setUserRank(count !== null ? count + 1 : null)
+            // Calculate user's rank
+            const { count, error: rankError } = await supabase
+              .from("user_scores")
+              .select("*", { count: "exact", head: true })
+              .eq("quiz_id", quizId)
+              .or(
+                `percentage.gt.${bestScore.percentage}, and(percentage.eq.${bestScore.percentage}, time_taken.lt.${bestScore.time_taken})`,
+              )
+
+            if (rankError) {
+              console.error("Error calculating rank:", rankError)
+            } else {
+              console.log("User rank calculation result:", count)
+              setUserRank(count !== null ? count + 1 : null)
+            }
+          } else {
+            console.log("No user score found")
+            setUserScore(null)
+            setUserRank(null)
           }
         }
+      } else {
+        console.log("User not authenticated or no profile ID")
+        setUserScore(null)
+        setUserRank(null)
       }
     } catch (error: any) {
       console.error("Error fetching leaderboard:", error)
@@ -131,7 +149,7 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
           <DialogTitle className="text-xl font-bold">Quiz Leaderboard</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="all" className="w-full" onValueChange={(value) => setActiveTab(value as "all" | "friends")}>
+        <Tabs defaultValue="all" className="w-full">
           <TabsList className="grid w-full grid-cols-1 mb-4">
             <TabsTrigger value="all">All Players</TabsTrigger>
           </TabsList>
@@ -193,6 +211,7 @@ export function QuizLeaderboard({ quizId, isOpen, onClose }: QuizLeaderboardProp
                         <div>
                           <div className="font-medium text-sm">
                             {score.profiles?.display_name || score.profiles?.username || "Anonymous"}
+                            {score.user_id === profile?.id && " (You)"}
                           </div>
                           <div className="text-xs text-gray-400 flex items-center gap-1">
                             <Clock className="h-3 w-3" />

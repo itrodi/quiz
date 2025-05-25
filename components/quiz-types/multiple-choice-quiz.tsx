@@ -8,6 +8,7 @@ import { QuizResults } from "@/components/quiz-results"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { shuffleArray } from "@/lib/array-utils"
+import { useAuth } from "@/contexts/auth-kit-context"
 import type { Tables } from "@/lib/supabase/database.types"
 
 type QuizProps = {
@@ -34,6 +35,7 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const { profile, isAuthenticated } = useAuth()
 
   const currentQuestion = questions[currentQuestionIndex]
 
@@ -148,24 +150,55 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
     setCompletionTime(timeTaken)
     setIsFinished(true)
 
-    // Save score to database if user is logged in - removed authentication requirement
     try {
-      // Create an anonymous record instead
-      const { data: anonymousUser } = await supabase
-        .from("user_scores")
-        .insert({
-          quiz_id: quiz.id,
-          score: score,
-          max_score: questions.length,
-          percentage: Math.round((score / questions.length) * 100),
-          time_taken: timeTaken,
-          // No user_id for anonymous users
-        })
-        .select()
+      const scoreData = {
+        quiz_id: quiz.id,
+        score: score,
+        max_score: questions.length,
+        percentage: Math.round((score / questions.length) * 100),
+        time_taken: timeTaken,
+        completed_at: new Date().toISOString(),
+      }
 
-      console.log("Anonymous score saved:", anonymousUser)
+      // If user is authenticated, include their user_id
+      if (isAuthenticated && profile?.id) {
+        const { data, error } = await supabase
+          .from("user_scores")
+          .insert({
+            ...scoreData,
+            user_id: profile.id,
+          })
+          .select()
+
+        if (error) {
+          console.error("Error saving score:", error)
+        } else {
+          console.log("Score saved:", data)
+
+          // Update quiz plays count
+          await supabase
+            .from("quizzes")
+            .update({ plays: quiz.plays + 1 })
+            .eq("id", quiz.id)
+        }
+      } else {
+        // Save anonymous score
+        const { data, error } = await supabase.from("user_scores").insert(scoreData).select()
+
+        if (error) {
+          console.error("Error saving anonymous score:", error)
+        } else {
+          console.log("Anonymous score saved:", data)
+
+          // Update quiz plays count
+          await supabase
+            .from("quizzes")
+            .update({ plays: quiz.plays + 1 })
+            .eq("id", quiz.id)
+        }
+      }
     } catch (error) {
-      console.error("Error saving score:", error)
+      console.error("Error in score saving process:", error)
     }
   }
 
