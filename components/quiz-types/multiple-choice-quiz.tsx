@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -8,7 +8,6 @@ import { QuizResults } from "@/components/quiz-results"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { shuffleArray } from "@/lib/array-utils"
-import { useAuth } from "@/contexts/auth-kit-context"
 import type { Tables } from "@/lib/supabase/database.types"
 
 type QuizProps = {
@@ -30,13 +29,9 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   const [isFinished, setIsFinished] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [startTime] = useState<number>(Date.now())
-  const [completionTime, setCompletionTime] = useState<number>(0)
-  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const supabase = createClient()
-  const { profile, isAuthenticated } = useAuth()
 
   const currentQuestion = questions[currentQuestionIndex]
 
@@ -61,13 +56,10 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   useEffect(() => {
     if (isFinished) return
 
-    timerRef.current = setInterval(() => {
+    const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current)
-            timerRef.current = null
-          }
+          clearInterval(timer)
           handleFinish()
           return 0
         }
@@ -75,12 +67,7 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
       })
     }, 1000)
 
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-    }
+    return () => clearInterval(timer)
   }, [isFinished])
 
   const handleOptionSelect = (option: string) => {
@@ -139,81 +126,27 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   }
 
   const handleFinish = async () => {
-    // Stop the timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-
-    // Calculate the exact completion time
-    const endTime = Date.now()
-    const timeTaken = Math.floor((endTime - startTime) / 1000)
-    setCompletionTime(timeTaken)
     setIsFinished(true)
-    setSaveError(null)
+    const timeTaken = Math.floor((Date.now() - startTime) / 1000)
 
+    // Save score to database if user is logged in - removed authentication requirement
     try {
-      console.log("Saving quiz score...")
+      // Create an anonymous record instead
+      const { data: anonymousUser } = await supabase
+        .from("user_scores")
+        .insert({
+          quiz_id: quiz.id,
+          score: score,
+          max_score: questions.length,
+          percentage: Math.round((score / questions.length) * 100),
+          time_taken: timeTaken,
+          // No user_id for anonymous users
+        })
+        .select()
 
-      const scoreData = {
-        quiz_id: quiz.id,
-        score: score,
-        max_score: questions.length,
-        percentage: Math.round((score / questions.length) * 100),
-        time_taken: timeTaken,
-        completed_at: new Date().toISOString(),
-      }
-
-      console.log("Score data to save:", scoreData)
-      console.log("User authenticated:", isAuthenticated)
-      console.log("User profile:", profile)
-
-      // If user is authenticated, include their user_id
-      if (isAuthenticated && profile?.id) {
-        console.log("Saving authenticated user score with ID:", profile.id)
-
-        const { data, error } = await supabase
-          .from("user_scores")
-          .insert({
-            ...scoreData,
-            user_id: profile.id,
-          })
-          .select()
-
-        if (error) {
-          console.error("Error saving score:", error)
-          setSaveError(`Failed to save score: ${error.message}`)
-        } else {
-          console.log("Score saved successfully:", data)
-
-          // Update quiz plays count
-          await supabase
-            .from("quizzes")
-            .update({ plays: quiz.plays + 1 })
-            .eq("id", quiz.id)
-        }
-      } else {
-        // Save anonymous score
-        console.log("Saving anonymous score")
-
-        const { data, error } = await supabase.from("user_scores").insert(scoreData).select()
-
-        if (error) {
-          console.error("Error saving anonymous score:", error)
-          setSaveError(`Failed to save anonymous score: ${error.message}`)
-        } else {
-          console.log("Anonymous score saved successfully:", data)
-
-          // Update quiz plays count
-          await supabase
-            .from("quizzes")
-            .update({ plays: quiz.plays + 1 })
-            .eq("id", quiz.id)
-        }
-      }
-    } catch (error: any) {
-      console.error("Error in score saving process:", error)
-      setSaveError(`Error saving score: ${error.message || "Unknown error"}`)
+      console.log("Anonymous score saved:", anonymousUser)
+    } catch (error) {
+      console.error("Error saving score:", error)
     }
   }
 
@@ -222,10 +155,9 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
       <QuizResults
         score={score}
         totalQuestions={questions.length}
-        timeTaken={completionTime}
+        timeTaken={quiz.time_limit - timeLeft}
         quizId={quiz.id}
         quizTitle={quiz.title}
-        saveError={saveError}
       />
     )
   }
