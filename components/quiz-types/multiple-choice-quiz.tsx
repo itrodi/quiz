@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -29,7 +29,9 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   const [isFinished, setIsFinished] = useState(false)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [startTime] = useState<number>(Date.now())
+  const [completionTime, setCompletionTime] = useState<number>(0)
 
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -56,10 +58,13 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   useEffect(() => {
     if (isFinished) return
 
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timer)
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
           handleFinish()
           return 0
         }
@@ -67,7 +72,12 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
   }, [isFinished])
 
   const handleOptionSelect = (option: string) => {
@@ -126,8 +136,17 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   }
 
   const handleFinish = async () => {
+    // Stop the timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+
+    // Calculate the exact completion time
+    const endTime = Date.now()
+    const timeTaken = Math.floor((endTime - startTime) / 1000)
+    setCompletionTime(timeTaken)
     setIsFinished(true)
-    const timeTaken = Math.floor((Date.now() - startTime) / 1000)
 
     // Save score to database if user is logged in - removed authentication requirement
     try {
@@ -155,7 +174,7 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
       <QuizResults
         score={score}
         totalQuestions={questions.length}
-        timeTaken={quiz.time_limit - timeLeft}
+        timeTaken={completionTime}
         quizId={quiz.id}
         quizTitle={quiz.title}
       />

@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy } from "lucide-react"
+import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, Share2 } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/contexts/auth-kit-context"
+import { QuizLeaderboard } from "@/components/quiz-leaderboard"
+import { useToast } from "@/hooks/use-toast"
 
 export default function QuizPreviewPage({ params }: { params: { id: string } }) {
   const [quiz, setQuiz] = useState<any>(null)
@@ -15,9 +17,11 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
   const [topScores, setTopScores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const supabase = createClient()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { toast } = useToast()
 
   useState(() => {
     const fetchQuizData = async () => {
@@ -81,6 +85,46 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
       month: "short",
       day: "numeric",
     }).format(date)
+  }
+
+  // Share quiz
+  const shareQuiz = async () => {
+    const quizUrl = `${window.location.origin}/quiz/preview/${params.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: quiz?.title || "Check out this quiz!",
+          text: quiz?.description || "I found this interesting quiz on BrainCast!",
+          url: quizUrl,
+        })
+      } catch (error) {
+        console.error("Error sharing:", error)
+        copyToClipboard(quizUrl)
+      }
+    } else {
+      copyToClipboard(quizUrl)
+    }
+  }
+
+  // Copy to clipboard fallback
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        toast({
+          title: "Link copied!",
+          description: "Quiz link copied to clipboard",
+        })
+      },
+      (err) => {
+        console.error("Could not copy text: ", err)
+        toast({
+          title: "Failed to copy",
+          description: "Could not copy the link to clipboard",
+          variant: "destructive",
+        })
+      },
+    )
   }
 
   if (loading) {
@@ -219,6 +263,16 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
                         </div>
                       ))}
                     </div>
+                    <div className="p-3 bg-slate-800 border-t border-slate-600">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-blue-400 hover:text-blue-300"
+                        onClick={() => setShowLeaderboard(true)}
+                      >
+                        View Full Leaderboard
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -235,9 +289,17 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
             <Button asChild size="lg" className="px-8">
               <Link href={`/quiz/${params.id}`}>Start Quiz</Link>
             </Button>
+
+            <Button variant="outline" size="lg" onClick={shareQuiz}>
+              <Share2 className="mr-2 h-5 w-5" />
+              Share Quiz
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Quiz Leaderboard Modal */}
+      <QuizLeaderboard quizId={params.id} isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
     </div>
   )
 }
