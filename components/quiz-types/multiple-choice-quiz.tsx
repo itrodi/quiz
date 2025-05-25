@@ -31,6 +31,7 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [startTime] = useState<number>(Date.now())
   const [completionTime, setCompletionTime] = useState<number>(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
@@ -149,8 +150,11 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
     const timeTaken = Math.floor((endTime - startTime) / 1000)
     setCompletionTime(timeTaken)
     setIsFinished(true)
+    setSaveError(null)
 
     try {
+      console.log("Saving quiz score...")
+
       const scoreData = {
         quiz_id: quiz.id,
         score: score,
@@ -160,8 +164,14 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
         completed_at: new Date().toISOString(),
       }
 
+      console.log("Score data to save:", scoreData)
+      console.log("User authenticated:", isAuthenticated)
+      console.log("User profile:", profile)
+
       // If user is authenticated, include their user_id
       if (isAuthenticated && profile?.id) {
+        console.log("Saving authenticated user score with ID:", profile.id)
+
         const { data, error } = await supabase
           .from("user_scores")
           .insert({
@@ -172,8 +182,9 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
 
         if (error) {
           console.error("Error saving score:", error)
+          setSaveError(`Failed to save score: ${error.message}`)
         } else {
-          console.log("Score saved:", data)
+          console.log("Score saved successfully:", data)
 
           // Update quiz plays count
           await supabase
@@ -183,12 +194,15 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
         }
       } else {
         // Save anonymous score
+        console.log("Saving anonymous score")
+
         const { data, error } = await supabase.from("user_scores").insert(scoreData).select()
 
         if (error) {
           console.error("Error saving anonymous score:", error)
+          setSaveError(`Failed to save anonymous score: ${error.message}`)
         } else {
-          console.log("Anonymous score saved:", data)
+          console.log("Anonymous score saved successfully:", data)
 
           // Update quiz plays count
           await supabase
@@ -197,8 +211,9 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
             .eq("id", quiz.id)
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in score saving process:", error)
+      setSaveError(`Error saving score: ${error.message || "Unknown error"}`)
     }
   }
 
@@ -210,6 +225,7 @@ export function MultipleChoiceQuiz({ quiz, questions: originalQuestions }: QuizP
         timeTaken={completionTime}
         quizId={quiz.id}
         quizTitle={quiz.title}
+        saveError={saveError}
       />
     )
   }

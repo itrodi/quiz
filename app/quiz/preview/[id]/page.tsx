@@ -51,20 +51,48 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
           setQuestionsCount(count)
         }
 
-        // Fetch top scores
-        const { data: scoresData, error: scoresError } = await supabase
+        // Fetch top scores - get best score per user
+        const { data: allScores, error: scoresError } = await supabase
           .from("user_scores")
           .select(`
-            score, 
-            percentage,
-            profiles(username, display_name, avatar_url)
+            *,
+            profiles:user_id(username, display_name, avatar_url)
           `)
           .eq("quiz_id", params.id)
-          .order("percentage", { ascending: false })
-          .limit(5)
 
-        if (!scoresError) {
-          setTopScores(scoresData || [])
+        if (scoresError) throw scoresError
+
+        // Group by user and get best score
+        const bestScoresByUser = new Map()
+
+        if (allScores) {
+          allScores.forEach((score) => {
+            // Skip anonymous scores
+            if (!score.user_id) return
+
+            const existingBest = bestScoresByUser.get(score.user_id)
+
+            // If no existing score or this score is better
+            if (
+              !existingBest ||
+              score.percentage > existingBest.percentage ||
+              (score.percentage === existingBest.percentage && score.time_taken < existingBest.time_taken)
+            ) {
+              bestScoresByUser.set(score.user_id, score)
+            }
+          })
+
+          // Convert to array, sort, and take top 5
+          const bestScores = Array.from(bestScoresByUser.values())
+            .sort((a, b) => {
+              if (b.percentage !== a.percentage) {
+                return b.percentage - a.percentage
+              }
+              return a.time_taken - b.time_taken
+            })
+            .slice(0, 5)
+
+          setTopScores(bestScores)
         }
       } catch (error: any) {
         console.error("Error fetching quiz:", error)
@@ -85,6 +113,13 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
       month: "short",
       day: "numeric",
     }).format(date)
+  }
+
+  // Format time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   // Share quiz
@@ -259,7 +294,10 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
                               <span>{score.profiles?.display_name || score.profiles?.username || "Anonymous"}</span>
                             </div>
                           </div>
-                          <div className="font-bold text-green-400">{score.percentage}%</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-green-400">{score.percentage}%</span>
+                            <span className="text-xs text-gray-400">({formatTime(score.time_taken)})</span>
+                          </div>
                         </div>
                       ))}
                     </div>
