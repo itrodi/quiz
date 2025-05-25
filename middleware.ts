@@ -45,11 +45,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Check if the request is for a protected route
-    const isProtectedRoute =
-      req.nextUrl.pathname.startsWith("/quiz/") ||
-      req.nextUrl.pathname.startsWith("/profile") ||
-      req.nextUrl.pathname.startsWith("/social") ||
-      req.nextUrl.pathname.startsWith("/create")
+    const isProtectedRoute = req.nextUrl.pathname.startsWith("/quiz/")
 
     // API routes should not be protected by this middleware
     const isApiRoute = req.nextUrl.pathname.startsWith("/api/")

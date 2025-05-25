@@ -5,9 +5,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, UserPlus } from "lucide-react"
+import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy } from "lucide-react"
 import Image from "next/image"
-import { UserSearchModal } from "@/components/user-search-modal"
 import { useAuth } from "@/contexts/auth-kit-context"
 
 export default function QuizPreviewPage({ params }: { params: { id: string } }) {
@@ -16,7 +15,6 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
   const [topScores, setTopScores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showChallengeModal, setShowChallengeModal] = useState(false)
   const supabase = createClient()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
@@ -237,24 +235,9 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
             <Button asChild size="lg" className="px-8">
               <Link href={`/quiz/${params.id}`}>Start Quiz</Link>
             </Button>
-
-            {isAuthenticated && (
-              <Button variant="outline" size="lg" className="px-8" onClick={() => setShowChallengeModal(true)}>
-                <UserPlus className="mr-2 h-5 w-5" />
-                Challenge Friend
-              </Button>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Challenge Modal */}
-      <UserSearchModal
-        isOpen={showChallengeModal}
-        onClose={() => setShowChallengeModal(false)}
-        quizId={params.id}
-        quizTitle={quiz.title}
-      />
     </div>
   )
 }

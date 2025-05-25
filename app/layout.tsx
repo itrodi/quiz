@@ -11,8 +11,8 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "FarQuiz - Interactive Quizzes",
-  description: "Test your knowledge and challenge friends with interactive quizzes on FarQuiz.",
+  title: "BrainCast - Interactive Quizzes",
+  description: "Test your knowledge and learn with interactive quizzes on BrainCast.",
     generator: 'v0.dev'
 }
 
