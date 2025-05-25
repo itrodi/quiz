@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, Share2 } from "lucide-react"
+import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, Share2, ListOrdered } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/contexts/auth-kit-context"
 import { QuizLeaderboard } from "@/components/quiz-leaderboard"
@@ -279,7 +279,19 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
                 <div className="bg-slate-700 rounded-lg p-6 flex flex-col items-center justify-center h-full">
                   <Trophy className="h-12 w-12 text-yellow-500 mb-3" />
                   <h3 className="text-lg font-medium mb-1">Be the first to complete this quiz!</h3>
-                  <p className="text-gray-400 text-center">No one has taken this quiz yet. Will you be the first?</p>
+                  <p className="text-gray-400 text-center mb-4">
+                    No one has taken this quiz yet. Will you be the first?
+                  </p>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                    onClick={() => setShowLeaderboard(true)}
+                  >
+                    <ListOrdered className="mr-2 h-4 w-4" />
+                    View Leaderboard
+                  </Button>
                 </div>
               )}
             </div>
