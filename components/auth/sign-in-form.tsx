@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mail } from "lucide-react"
 import Link from "next/link"
-import { toast } from "@/components/ui/use-toast"
+// Remove the import for FarcasterSignInButton
+// import { FarcasterSignInButton } from "./dev-confirm-button"
 
 export function SignInForm() {
   const [email, setEmail] = useState("")
@@ -36,28 +37,20 @@ export function SignInForm() {
     setResendSuccess(false)
 
     try {
-      console.log("Attempting to sign in with email:", email)
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (signInError) {
-        console.error("Sign in error:", signInError)
         if (signInError.message.includes("Email not confirmed")) {
           setEmailNotConfirmed(true)
         }
         throw signInError
       }
 
-      console.log("Sign in successful, redirecting to homepage")
-      toast({
-        title: "Sign in successful",
-        description: "Welcome back!",
-      })
-
-      // Force a hard navigation to the homepage
-      window.location.href = "/"
+      router.push("/")
+      router.refresh()
     } catch (error: any) {
       console.error("Sign in error:", error)
       setError(error.message || "An error occurred during sign in")
@@ -85,45 +78,6 @@ export function SignInForm() {
       setError(`Failed to resend confirmation email: ${error.message}`)
     } finally {
       setResendingEmail(false)
-    }
-  }
-
-  // For development bypass
-  const handleDevConfirm = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch("/api/auth/dev-confirm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to confirm email")
-      }
-
-      toast({
-        title: "Email confirmed",
-        description: "You can now sign in",
-      })
-
-      // Try to sign in automatically
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError) throw signInError
-
-      window.location.href = "/"
-    } catch (error: any) {
-      console.error("Dev confirm error:", error)
-      setError(error.message || "An error occurred during confirmation")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -165,18 +119,6 @@ export function SignInForm() {
                   </>
                 )}
               </Button>
-
-              {process.env.NODE_ENV === "development" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-2 border-purple-600 hover:bg-purple-700"
-                  onClick={handleDevConfirm}
-                  disabled={loading}
-                >
-                  Dev: Confirm Email
-                </Button>
-              )}
             </AlertDescription>
           </Alert>
         )}
@@ -221,6 +163,8 @@ export function SignInForm() {
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {loading ? "Signing In..." : "Sign In"}
           </Button>
+
+          {/* Remove the DevConfirmButton */}
         </form>
       </CardContent>
       <CardFooter className="flex flex-col gap-4">

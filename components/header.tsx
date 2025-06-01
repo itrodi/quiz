@@ -17,6 +17,15 @@ export function Header() {
           <Link href="/explore" className="text-sm font-medium hover:text-white">
             Explore
           </Link>
+          <a href="/leaderboard" className="text-sm font-medium hover:text-white">
+            Leaderboard
+          </a>
+          <Link href="/social" className="text-sm font-medium hover:text-white">
+            Social
+          </Link>
+          <Link href="/profile" className="text-sm font-medium hover:text-white">
+            Profile
+          </Link>
         </nav>
 
         <UserProfileHeader />
