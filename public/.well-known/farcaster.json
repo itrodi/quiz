@@ -1,20 +1,18 @@
 {
   "accountAssociation": {
-    "header": "YOUR_BASE64_ENCODED_HEADER",
-    "payload": "YOUR_BASE64_ENCODED_PAYLOAD",
-    "signature": "YOUR_BASE64_ENCODED_SIGNATURE"
+    "header": "eyJmaWQiOjg1MDI3NSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDI2RGZDYTU4QzAwRmQ2OTY5MjBBNjM4M2MzRkEwYUE3YTg3Qjk5NGUifQ",
+    "payload": "eyJkb21haW4iOiJxdWl6LWVpZ2h0LXNvb3R5LnZlcmNlbC5hcHAifQ",
+    "signature": "MHgyNWVmOGFlNmI3NzFmOWI1MTMwYmI3ZmM4NDgzMWI4YmY3N2M2MTYzY2M5YTc4Zjg3MzE5NzRhM2YxM2Y2ZjRlN2E0MDEyYWRhNjllNzYyZGI3YTM0YTMyMzJjNGY1ZTRhZWZhZTc1ZTE4ZGM1ZTEzMDQ1Yjg3OTU3NjIzZWIzYTFi"
   },
   "frame": {
     "version": "1",
-    "name": "BrainCast",
-    "iconUrl": "https://your-app-url.com/icon.png",
-    "homeUrl": "https://your-app-url.com",
-    "imageUrl": "https://your-app-url.com/api/og",
-    "buttonTitle": "Launch BrainCast",
-    "splashImageUrl": "https://your-app-url.com/splash.png",
-    "splashBackgroundColor": "#0f172a",
-    "webhookUrl": "https://your-app-url.com/api/farcaster/webhook",
-    "requiredChains": ["eip155:8453"],
-    "requiredCapabilities": ["actions.signIn", "actions.composeCast"]
+    "name": "Farquiz",
+    "iconUrl": "https://quiz-eight-sooty.vercel.app/icon.png",
+    "homeUrl": "https://quiz-eight-sooty.vercel.app",
+    "imageUrl": "https://quiz-eight-sooty.vercel.app/image.png",
+    "buttonTitle": "Check this out",
+    "splashImageUrl": "https://quiz-eight-sooty.vercel.app/splash.png",
+    "splashBackgroundColor": "#8B5CF6",
+    "webhookUrl": "https://quiz-eight-sooty.vercel.app/api/webhook"
   }
 }

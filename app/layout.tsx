@@ -11,7 +11,7 @@ import { FarcasterWrapper } from "@/components/farcaster-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://your-app-url.com" // Fallback URL
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://quiz-eight-sooty.vercel.app" // Fallback URL
 const ogImageUrl = `${appUrl}/api/og`
 const splashImageUrl = `${appUrl}/splash.png` // Assume you'll add a splash.png to /public
 
