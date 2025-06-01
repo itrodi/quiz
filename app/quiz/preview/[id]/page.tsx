@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, UserPlus } from "lucide-react"
+import { Clock, Users, BarChart2, Award, Calendar, Tag, Trophy, Share2, ListOrdered } from "lucide-react"
 import Image from "next/image"
-import { UserSearchModal } from "@/components/user-search-modal"
 import { useAuth } from "@/contexts/auth-kit-context"
+import { QuizLeaderboard } from "@/components/quiz-leaderboard"
+import { useToast } from "@/hooks/use-toast"
 
 export default function QuizPreviewPage({ params }: { params: { id: string } }) {
   const [quiz, setQuiz] = useState<any>(null)
@@ -16,10 +17,11 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
   const [topScores, setTopScores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showChallengeModal, setShowChallengeModal] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
   const supabase = createClient()
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { toast } = useToast()
 
   useState(() => {
     const fetchQuizData = async () => {
@@ -49,20 +51,48 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
           setQuestionsCount(count)
         }
 
-        // Fetch top scores
-        const { data: scoresData, error: scoresError } = await supabase
+        // Fetch top scores - get best score per user
+        const { data: allScores, error: scoresError } = await supabase
           .from("user_scores")
           .select(`
-            score, 
-            percentage,
-            profiles(username, display_name, avatar_url)
+            *,
+            profiles:user_id(username, display_name, avatar_url)
           `)
           .eq("quiz_id", params.id)
-          .order("percentage", { ascending: false })
-          .limit(5)
 
-        if (!scoresError) {
-          setTopScores(scoresData || [])
+        if (scoresError) throw scoresError
+
+        // Group by user and get best score
+        const bestScoresByUser = new Map()
+
+        if (allScores) {
+          allScores.forEach((score) => {
+            // Skip anonymous scores
+            if (!score.user_id) return
+
+            const existingBest = bestScoresByUser.get(score.user_id)
+
+            // If no existing score or this score is better
+            if (
+              !existingBest ||
+              score.percentage > existingBest.percentage ||
+              (score.percentage === existingBest.percentage && score.time_taken < existingBest.time_taken)
+            ) {
+              bestScoresByUser.set(score.user_id, score)
+            }
+          })
+
+          // Convert to array, sort, and take top 5
+          const bestScores = Array.from(bestScoresByUser.values())
+            .sort((a, b) => {
+              if (b.percentage !== a.percentage) {
+                return b.percentage - a.percentage
+              }
+              return a.time_taken - b.time_taken
+            })
+            .slice(0, 5)
+
+          setTopScores(bestScores)
         }
       } catch (error: any) {
         console.error("Error fetching quiz:", error)
@@ -83,6 +113,53 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
       month: "short",
       day: "numeric",
     }).format(date)
+  }
+
+  // Format time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  // Share quiz
+  const shareQuiz = async () => {
+    const quizUrl = `${window.location.origin}/quiz/preview/${params.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: quiz?.title || "Check out this quiz!",
+          text: quiz?.description || "I found this interesting quiz on BrainCast!",
+          url: quizUrl,
+        })
+      } catch (error) {
+        console.error("Error sharing:", error)
+        copyToClipboard(quizUrl)
+      }
+    } else {
+      copyToClipboard(quizUrl)
+    }
+  }
+
+  // Copy to clipboard fallback
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        toast({
+          title: "Link copied!",
+          description: "Quiz link copied to clipboard",
+        })
+      },
+      (err) => {
+        console.error("Could not copy text: ", err)
+        toast({
+          title: "Failed to copy",
+          description: "Could not copy the link to clipboard",
+          variant: "destructive",
+        })
+      },
+    )
   }
 
   if (loading) {
@@ -217,9 +294,22 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
                               <span>{score.profiles?.display_name || score.profiles?.username || "Anonymous"}</span>
                             </div>
                           </div>
-                          <div className="font-bold text-green-400">{score.percentage}%</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-green-400">{score.percentage}%</span>
+                            <span className="text-xs text-gray-400">({formatTime(score.time_taken)})</span>
+                          </div>
                         </div>
                       ))}
+                    </div>
+                    <div className="p-3 bg-slate-800 border-t border-slate-600">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-blue-400 hover:text-blue-300"
+                        onClick={() => setShowLeaderboard(true)}
+                      >
+                        View Full Leaderboard
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -227,7 +317,19 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
                 <div className="bg-slate-700 rounded-lg p-6 flex flex-col items-center justify-center h-full">
                   <Trophy className="h-12 w-12 text-yellow-500 mb-3" />
                   <h3 className="text-lg font-medium mb-1">Be the first to complete this quiz!</h3>
-                  <p className="text-gray-400 text-center">No one has taken this quiz yet. Will you be the first?</p>
+                  <p className="text-gray-400 text-center mb-4">
+                    No one has taken this quiz yet. Will you be the first?
+                  </p>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                    onClick={() => setShowLeaderboard(true)}
+                  >
+                    <ListOrdered className="mr-2 h-4 w-4" />
+                    View Leaderboard
+                  </Button>
                 </div>
               )}
             </div>
@@ -238,23 +340,16 @@ export default function QuizPreviewPage({ params }: { params: { id: string } }) 
               <Link href={`/quiz/${params.id}`}>Start Quiz</Link>
             </Button>
 
-            {isAuthenticated && (
-              <Button variant="outline" size="lg" className="px-8" onClick={() => setShowChallengeModal(true)}>
-                <UserPlus className="mr-2 h-5 w-5" />
-                Challenge Friend
-              </Button>
-            )}
+            <Button variant="outline" size="lg" onClick={shareQuiz}>
+              <Share2 className="mr-2 h-5 w-5" />
+              Share Quiz
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Challenge Modal */}
-      <UserSearchModal
-        isOpen={showChallengeModal}
-        onClose={() => setShowChallengeModal(false)}
-        quizId={params.id}
-        quizTitle={quiz.title}
-      />
+      {/* Quiz Leaderboard Modal */}
+      <QuizLeaderboard quizId={params.id} isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
     </div>
   )
 }
