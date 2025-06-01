@@ -7,21 +7,77 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Swords } from "lucide-react"
 import Link from "next/link"
 import { ChallengeModal } from "@/components/challenge-modal"
+import { createClient } from "@/lib/supabase/client"
 
 export function FriendsList() {
   const [friends, setFriends] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [challengeUser, setChallengeUser] = useState<{ id: string; name: string } | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     const fetchFriends = async () => {
       setLoading(true)
       try {
-        const response = await fetch("/api/friends?status=accepted")
-        if (!response.ok) throw new Error("Failed to fetch friends")
+        // Get the current user's ID
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.user) {
+          setLoading(false)
+          return
+        }
 
-        const data = await response.json()
-        setFriends(data)
+        // Get all accepted friendships where the user is either sender or recipient
+        const { data: friendships, error: friendshipsError } = await supabase
+          .from("friends")
+          .select("id, created_at, sender_id, recipient_id")
+          .eq("status", "accepted")
+          .or(`sender_id.eq.${session.user.id},recipient_id.eq.${session.user.id}`)
+          .order("created_at", { ascending: false })
+
+        if (friendshipsError) {
+          console.error("Error fetching friendships:", friendshipsError)
+          setLoading(false)
+          return
+        }
+
+        if (!friendships || friendships.length === 0) {
+          setFriends([])
+          setLoading(false)
+          return
+        }
+
+        // Get all friend IDs (the other user in each friendship)
+        const friendIds = friendships.map((friendship) =>
+          friendship.sender_id === session.user.id ? friendship.recipient_id : friendship.sender_id,
+        )
+
+        // Get all friend profiles
+        const { data: friendProfiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, username, display_name, avatar_url")
+          .in("id", friendIds)
+
+        if (profilesError) {
+          console.error("Error fetching friend profiles:", profilesError)
+          setLoading(false)
+          return
+        }
+
+        // Combine the data
+        const enrichedFriends = friendships.map((friendship) => {
+          const friendId = friendship.sender_id === session.user.id ? friendship.recipient_id : friendship.sender_id
+          const friendProfile = friendProfiles?.find((profile) => profile.id === friendId)
+
+          return {
+            id: friendship.id,
+            created_at: friendship.created_at,
+            friend: friendProfile || { id: friendId, username: "Unknown", display_name: "Unknown User" },
+          }
+        })
+
+        setFriends(enrichedFriends)
       } catch (error) {
         console.error("Error fetching friends:", error)
       } finally {
@@ -30,6 +86,26 @@ export function FriendsList() {
     }
 
     fetchFriends()
+
+    // Set up a subscription to refresh the data when friendships change
+    const friendsSubscription = supabase
+      .channel("friends-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "friends",
+        },
+        () => {
+          fetchFriends()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(friendsSubscription)
+    }
   }, [])
 
   const handleChallenge = (userId: string, name: string) => {

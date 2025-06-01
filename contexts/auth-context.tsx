@@ -6,13 +6,11 @@ import { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { User, Session } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
-import { signInWithFarcaster } from "@/lib/farcaster"
 
 type AuthContextType = {
   user: User | null
   session: Session | null
   isLoading: boolean
-  signIn: (provider: "farcaster") => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -29,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getSession = async () => {
       setIsLoading(true)
       try {
+        console.log("Getting session from Supabase")
         const {
           data: { session },
           error,
@@ -36,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           throw error
         }
+        console.log("Session retrieved:", session ? "Session exists" : "No session")
         setSession(session)
         setUser(session?.user ?? null)
       } catch (error) {
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed:", _event)
       setSession(session)
       setUser(session?.user ?? null)
       router.refresh()
@@ -59,34 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe()
     }
   }, [supabase, router])
-
-  const signIn = async (provider: "farcaster") => {
-    try {
-      setIsLoading(true)
-
-      if (provider === "farcaster") {
-        // Use our enhanced signInWithFarcaster function
-        const result = await signInWithFarcaster()
-
-        if (!result) {
-          throw new Error("Failed to sign in with Farcaster")
-        }
-
-        // The session should be automatically set by the Supabase client
-        // after the API route sets the cookies
-
-        router.push("/")
-        return
-      }
-
-      throw new Error(`Unsupported provider: ${provider}`)
-    } catch (error) {
-      console.error("Error signing in:", error)
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const signOut = async () => {
     try {
@@ -102,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     isLoading,
-    signIn,
     signOut,
   }
 
