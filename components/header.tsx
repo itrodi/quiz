@@ -10,12 +10,21 @@ export function Header() {
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600">
             <Brain className="h-5 w-5 text-white" />
           </div>
-          <span className="font-bold text-lg">BrainCast</span>
+          <span className="font-bold text-lg">FarQuiz</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
           <Link href="/explore" className="text-sm font-medium hover:text-white">
             Explore
+          </Link>
+          <a href="/leaderboard" className="text-sm font-medium hover:text-white">
+            Leaderboard
+          </a>
+          <Link href="/social" className="text-sm font-medium hover:text-white">
+            Social
+          </Link>
+          <Link href="/profile" className="text-sm font-medium hover:text-white">
+            Profile
           </Link>
         </nav>
 

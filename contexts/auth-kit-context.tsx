@@ -5,7 +5,6 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter, usePathname } from "next/navigation"
-import { sdk } from "@farcaster/frame-sdk" // Add this import
 
 type Profile = {
   id: string
@@ -17,23 +16,12 @@ type Profile = {
   quizzesCreated: number
 }
 
-// Add Farcaster user type
-type FarcasterUser = {
-  fid: number
-  username: string | null
-  displayName: string | null
-  pfpUrl: string | null
-}
-
 type AuthContextType = {
-  isAuthenticated: boolean // True if Supabase session exists
+  isAuthenticated: boolean
   isLoading: boolean
-  profile: Profile | null // Supabase profile
-  farcasterUser: FarcasterUser | null // Add this
-  farcasterToken: string | null // Add this
+  profile: Profile | null
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
-  signInWithFarcaster: () => Promise<void> // Add this
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,8 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null)
-  const [farcasterToken, setFarcasterToken] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -220,73 +206,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval)
   }, [isAuthenticated, supabase.auth])
 
-  const syncFarcasterProfileToSupabase = useCallback(
-    async (fcUser: FarcasterUser) => {
-      if (!fcUser) return
-      setIsLoading(true)
-      try {
-        const response = await fetch("/api/auth/farcaster-profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(fcUser),
-        })
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || "Failed to sync Farcaster profile")
-        }
-        const supabaseProfile = await response.json()
-        setProfile(supabaseProfile) // Update Supabase profile state
-
-        // Optionally, if the API route also handles Supabase login and returns a session:
-        // const { data: { session } } = await supabase.auth.getSession();
-        // setIsAuthenticated(!!session);
-        // if (session) await fetchProfile(session.user.id); // Refresh full profile if needed
-      } catch (error) {
-        console.error("Error syncing Farcaster profile to Supabase:", error)
-        // Potentially show a toast to the user
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [supabase],
-  )
-
-  const signInWithFarcaster = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const isMiniApp = await sdk.isInMiniApp()
-      if (!isMiniApp) {
-        console.warn("Not in Farcaster Mini App environment. Farcaster sign-in unavailable.")
-        // Optionally, show a toast or message to the user
-        setIsLoading(false)
-        return
-      }
-
-      const { token, userDetails } = await sdk.experimental.quickAuth()
-      if (token && userDetails) {
-        const fcUser: FarcasterUser = {
-          fid: userDetails.fid,
-          username: userDetails.username,
-          displayName: userDetails.displayName,
-          pfpUrl: userDetails.pfpUrl,
-        }
-        setFarcasterToken(token)
-        setFarcasterUser(fcUser)
-        console.log("Farcaster quickAuth successful:", fcUser)
-
-        // Sync Farcaster profile to Supabase (creates/updates profile, doesn't log into Supabase session yet)
-        await syncFarcasterProfileToSupabase(fcUser)
-      } else {
-        console.error("Farcaster quickAuth failed to return token or userDetails.")
-      }
-    } catch (error) {
-      console.error("Error signing in with Farcaster:", error)
-      // Potentially show a toast to the user
-    } finally {
-      setIsLoading(false)
-    }
-  }, [syncFarcasterProfileToSupabase])
-
   const signOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -303,11 +222,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     isLoading,
     profile,
-    farcasterUser, // Add this
-    farcasterToken, // Add this
     signOut,
     refreshProfile,
-    signInWithFarcaster, // Add this
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

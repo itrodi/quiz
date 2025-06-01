@@ -35,6 +35,8 @@ export function QuizResults({
   const supabase = createClient()
 
   const percentage = Math.round((score / totalQuestions) * 100)
+  const minutes = Math.floor(timeTaken / 60)
+  const seconds = timeTaken % 60
 
   useEffect(() => {
     async function checkLeaderboard() {
